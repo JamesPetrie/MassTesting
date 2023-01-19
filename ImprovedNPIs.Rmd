@@ -49,12 +49,19 @@ Mixed results in real world. explore problems and fix them.
 - Overly unpleasant [china]. No financial incentives, isolated by force, also used centralized location tracking. Quite effective for a while, but even with level of government control eventually lost population support. With less support, less effective, and requires even more interventions, to point where protests and rampant spread. Aim to incentivize compliance, reduce friction, minimize data collection, and be less heavy-handed so that approach is palatable in more countries and could be sustained indefinitely. 
 
 
-Useful to construct a very simplified mathematical model of the strategy to make explicit our assumptions and quantitively analyse points of failure.
+Useful to construct a very simplified mathematical model of the strategy to make explicit our assumptions and quantitively analyse points of failure. For simplicity, will only consider this strategy and not combinations of them. In a homogeneous population where fraction $\gamma$ test regularly, fraction $\sigma$ of counterfactual transmissions occur after receiving a positive test (depending on frequency, delay, and relationship between test sensitivity and infectiousness), and transmissions are reduced to fraction $\beta$ after receiving a positive test, the following equation gives the reproductive number.
 
 $R_t = R_0 (1 - \gamma \sigma \beta)$
 
+$\gamma$ depends on compliance and accessibility within the population. Ideally can increase by making very easy to get, paying people per test taken, and making it a pre-requisite for daily activities like going into school, work, stores
+
+
 
 todo: compute fraction of transmissions after receiving positive test as function of frequency and delay for Covid
+
+
+
+As described, expect to be sufficient for sustained low-cost control of almost completely asymptomatic R_0 = 2.5 virus, something that existing strategies cannot do. For more challenging scenarios (e.g. R_0 = 9, or substantial transmission capability on same day of negative test) it still provides a very strong starting point - reduce transmissions by large fraction, failure analysis of transmissions using phylo, norm setting for isolation, very high case detection (albeit delayed) to base contact tracing on. So could conceivably modify slightly and achieve control of dificult pathogens at similar cost (say with addition of immediate isolation of household members, increased testing frequency for contacts, and requirement to mask around strangers)
 
 # Cost
 
@@ -103,5 +110,5 @@ Dependent on border restrictions, so aim for cost less than that
 Two questions- will it work and is it better than alternatives. Both disease dependent, but for 
 
 
-As described, expect to be sufficient for sustained low-cost control of almost completely asymptomatic R_0 = 2.5 virus, something that existing strategies cannot do. For more challenging scenarios (e.g. R_0 = 9, or substantial transmission capability on same day of negative test) it still provides a very strong starting point - reduce transmissions by large fraction, failure analysis of transmissions using phylo, norm setting for isolation, very high case detection (albeit delayed) to base contact tracing on. So could conceivably modify slightly and achieve control of dificult pathogens at similar cost (say with addition of immediate isolation of household members, increased testing frequency for contacts, and requirement to mask around strangers)
+
 
