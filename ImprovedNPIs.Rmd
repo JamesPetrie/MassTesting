@@ -33,22 +33,57 @@ In addition to mandating steps we propose to also incentivize them (both carrot 
 
 # A proposed solution: incentivized and targeted frequent testing
 
-Not that different from what was implemented in many places: test everyone frequently and isolate positives.
+Very simply, the strategy we will explore is to test many people often and isolate positives.
 
-Mixed results. explore problems and fix them. 
+Meets design strategy: 
+- has few steps: test, isolate positives
+- both steps have strong evidence that mandates will be accepted and can be enforced [air travel, Bermuda, Australia]
+- possible to incentivize (trivially with payments to fullly compensate for time, and potentially with more advanced schemes that we will return to later)
+
+What we are poroposing here is not that different from what was implemented in many places (and that is a good thing - the goal is simple, sensible seeming strategy).
+
+Mixed results in real world. explore problems and fix them. 
 - insufficient frequency [Slovakia, Japan paper]. Interventions must be ongoing unless elimination achieved
 - insufficient enforcement of isolation [US college]
 - all disease control strategies are sensitive to importation rates. e.g. college community with frequent mixing with general population will see many importations, and this could mask effect of intervention. If possible, much better to reduce links with high prevalence populations (possible to do at country level with border control, or even province level [atlantic canada]).
-- Overly unpleasant [china]. No financial incentives, isolated by force. Quite effective for a while, but even with level of government control eventually lost population support. With less support, less effective, and requires even more interventions, to point where protests and rampant spread. Aim to incentivize compliance, reduce friction, minimize data collection, and be less heavy-handed so that approach is palatable in more countries. 
+- Overly unpleasant [china]. No financial incentives, isolated by force, also used centralized location tracking. Quite effective for a while, but even with level of government control eventually lost population support. With less support, less effective, and requires even more interventions, to point where protests and rampant spread. Aim to incentivize compliance, reduce friction, minimize data collection, and be less heavy-handed so that approach is palatable in more countries and could be sustained indefinitely. 
 
 
+Useful to construct a very simplified mathematical model of the strategy. 
+
+
+
+# Cost
+
+
+
+```{r}
+R0 = 3.0
+
+computeCost = function(testFraction = 0.95, isoFraction = 0.9, testFreq = 0.5){
+  transFraction = 0.8 # todo: make function of test frequency, delay, sensitivity, expected transmission function
+  importRate = 1e-4
+  
+  
+  testCost = 10 + 40
+  isoCost = 10*(100 + 200) + 0.5*3000
+  
+  Rt = R0*(1 - testFraction*transFraction*isoFraction)
+  
+  dailyCostPerPerson = testFraction*testFreq*testCost + importRate*1/(1-Rt)*testFraction*isoCost
+  gdpPerCapita = 70e3 # gdp per person in USA
+  return(dailyCostPerPerson*365/gdpPerCapita)
+}
+```
+
+todo: compute fraction of transmissions after receiving positive test as function of frequency and delay for Covid
 
 # Notes:
 
 
 Two scenarios:
 
-1. Pandemic, where there is ability to close borders to high prev countries (and ideally keep them open to low prev). Model as 1/100 flow between high prev- leading to below 1/10000 import rate relative to normal flow
+1. Pandemic, where there is ability to close borders to high prevalence countries (and ideally keep them open to low prev). Model as 1/100 flow between high prev- leading to below 1/10000 import rate relative to normal flow
 
 2. Business as usual, where border restrictions not possible
 
