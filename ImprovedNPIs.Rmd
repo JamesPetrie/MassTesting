@@ -13,10 +13,10 @@ In practice targeted NPIs have had difficulty with reliability
 During covid, several steps in the targeted NPIs used depended on selfless behaviour from individuals and sufficient attention from under-resourced public health. E.g. contact tracing where a limited number of PH employees convinced people to quarantine after exposure - potentially losing income and leisure during this time for no personal benefit. Surprising targeted NPIs worked as well as they did [] given how actively disincentivized they were. testament to fair amount of pro-social behaviour in time of crisis and hard work by public health (contact tracing etc.). However, in many places targeted NPIs were insufficient alone.
 
 
-Without strong enough targeted NPIs, Infection rate rose to level where it had to be mediated by either infection-acquired immunity or substantially reduced socialization. This approach of reduced social contacts was more reliable when used, but extremely expensive (banning gatherings for everyone). In addition, broad NPIs were frequently only sufficiently supported when disease rate was relatively quite high (10e-3). This is the main mechanism for disease control that we would predict in a game-theory setting if actors were uncoordinated and self-serving.
+Without strong enough targeted NPIs, Infection rate rose to level where it had to be mediated by either infection-acquired immunity or substantially reduced socialization. This approach of reduced social contacts could be highly effective when supported by the population, but is extremely expensive (banning gatherings for everyone). In addition, broad NPIs were frequently only sufficiently supported when disease rate was relatively quite high (10e-3). This is the main mechanism for disease control that we would predict in a game-theory setting if actors were uncoordinated and self-serving.
 
 
-Aim here is to strengthen low cost interventions so that neither infection or substantial social distancing occur (e.g. Ebola response). Would be much more dependable if we can do so without relying on altruistic actions from individuals or heroic efforts from public health. Essentially, can we design a simple mechanism for coordinating (sufficiently) low-cost disease control within a self-serving population?
+Aim here is to strengthen low cost interventions so that neither infection or substantial social distancing occur (Like the Ebola response but for viruses with airborne and potentially pre-symptomatic transmission). Would be much more dependable if we can do so without relying on altruistic actions from individuals or heroic efforts from public health. Essentially, can we design a simple mechanism for coordinating (sufficiently) low-cost disease control within a self-serving population?
 
 
 
@@ -49,9 +49,12 @@ Mixed results in real world. explore problems and fix them.
 - Overly unpleasant [china]. No financial incentives, isolated by force, also used centralized location tracking. Quite effective for a while, but even with level of government control eventually lost population support. With less support, less effective, and requires even more interventions, to point where protests and rampant spread. Aim to incentivize compliance, reduce friction, minimize data collection, and be less heavy-handed so that approach is palatable in more countries and could be sustained indefinitely. 
 
 
-Useful to construct a very simplified mathematical model of the strategy. 
+Useful to construct a very simplified mathematical model of the strategy to make explicit our assumptions and quantitively analyse points of failure.
+
+$R_t = R_0 (1 - \gamma \sigma \beta)$
 
 
+todo: compute fraction of transmissions after receiving positive test as function of frequency and delay for Covid
 
 # Cost
 
@@ -76,7 +79,10 @@ computeCost = function(testFraction = 0.95, isoFraction = 0.9, testFreq = 0.5){
 }
 ```
 
-todo: compute fraction of transmissions after receiving positive test as function of frequency and delay for Covid
+
+
+
+
 
 # Notes:
 
@@ -96,4 +102,6 @@ Dependent on border restrictions, so aim for cost less than that
 
 Two questions- will it work and is it better than alternatives. Both disease dependent, but for 
 
+
+As described, expect to be sufficient for sustained low-cost control of almost completely asymptomatic R_0 = 2.5 virus, something that existing strategies cannot do. For more challenging scenarios (e.g. R_0 = 9, or substantial transmission capability on same day of negative test) it still provides a very strong starting point - reduce transmissions by large fraction, failure analysis of transmissions using phylo, norm setting for isolation, very high case detection (albeit delayed) to base contact tracing on. So could conceivably modify slightly and achieve control of dificult pathogens at similar cost (say with addition of immediate isolation of household members, increased testing frequency for contacts, and requirement to mask around strangers)
 
