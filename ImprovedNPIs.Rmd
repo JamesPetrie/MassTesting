@@ -1,0 +1,64 @@
+---
+title: "Non-pharmaceutical interventions for respiratory pandemics: challenges and potential solutions"
+output: pdf_document
+---
+
+
+NPIs essential early in pandemic to buy time for treatment. For some pathogens, vaccines may not be as effective as needed, especially for engineered pathogens (or multi-release scenario). If NPIs inexpensive enough, may even be useful after vaccines are available (e.g. see farmed animal infectious disease control). In theory can achieve disease control very efficiently using targeted NPIs []
+
+In practice targeted NPIs have had difficulty with reliability
+- multiple points of failure (gathering information, making good decisions with information, convincing people to modify behaviour in time to prevent transmissions)
+- success rate at each step is not high enough (e.g. with 5 sequential steps that are each 50% effective, the overall effectiveness is 0.5^5 = 3.1%
+
+During covid, several steps in the targeted NPIs used depended on selfless behaviour from individuals and sufficient attention from under-resourced public health. E.g. contact tracing where a limited number of PH employees convinced people to quarantine after exposure - potentially losing income and leisure during this time for no personal benefit. Surprising targeted NPIs worked as well as they did [] given how actively disincentivized they were. testament to fair amount of pro-social behaviour in time of crisis and hard work by public health (contact tracing etc.). However, in many places targeted NPIs were insufficient alone.
+
+
+Without strong enough targeted NPIs, Infection rate rose to level where it had to be mediated by either infection-acquired immunity or substantially reduced socialization. This approach of reduced social contacts was more reliable when used, but extremely expensive (banning gatherings for everyone). In addition, broad NPIs were frequently only sufficiently supported when disease rate was relatively quite high (10e-3). This is the main mechanism for disease control that we would predict in a game-theory setting if actors were uncoordinated and self-serving.
+
+
+Aim here is to strengthen low cost interventions so that neither infection or substantial social distancing occur (e.g. Ebola response). Would be much more dependable if we can do so without relying on altruistic actions from individuals or heroic efforts from public health. Essentially, can we design a simple mechanism for coordinating (sufficiently) low-cost disease control within a self-serving population?
+
+
+
+Will focus on strategies with as few steps as possible and where (in time of pandemic) it is both politically feasible and practically possible to mandate each step. Restricts what is possible though- seems like public support for mandating contact tracing apps is limited. Infeasible to mandate sharing recent contacts. Worthwhile where possible though - several countries demonstrated that mandating isolation for positive patients is possible and significantly increases effectiveness [AUS, China, Vietnam]. Mandating testing has been accepted in several contexts [].
+
+
+In addition to mandating steps we propose to also incentivize them (both carrot and stick). There are several reasons for doing this:
+	- even higher compliance
+	-fairer: targeted interventions impose a significant burden on a small fraction of the population. Success positively impacts whole population so they deserve to be at least partially rewarded for it.
+	-internalizes previously external costs (which disincentivizes unnecessary use of harmful public health policies like long quarantine or broad social distancing )
+	-reliable over longer periods (avoid failure modes from Aus and China where lost public support)
+	
+
+
+# A proposed solution: incentivized and targeted frequent testing
+
+Not that different from what was implemented in many places: test everyone frequently and isolate positives.
+
+Mixed results. explore problems and fix them. 
+- insufficient frequency [Slovakia, Japan paper]. Interventions must be ongoing unless elimination achieved
+- insufficient enforcement of isolation [US college]
+- all disease control strategies are sensitive to importation rates. e.g. college community with frequent mixing with general population will see many importations, and this could mask effect of intervention. If possible, much better to reduce links with high prevalence populations (possible to do at country level with border control, or even province level [atlantic canada]).
+- Overly unpleasant [china]. No financial incentives, isolated by force. Quite effective for a while, but even with level of government control eventually lost population support. With less support, less effective, and requires even more interventions, to point where protests and rampant spread. Aim to incentivize compliance, reduce friction, minimize data collection, and be less heavy-handed so that approach is palatable in more countries. 
+
+
+
+# Notes:
+
+
+Two scenarios:
+
+1. Pandemic, where there is ability to close borders to high prev countries (and ideally keep them open to low prev). Model as 1/100 flow between high prev- leading to below 1/10000 import rate relative to normal flow
+
+2. Business as usual, where border restrictions not possible
+
+First is easier because import rate much lower and because willingness to spend to prevent infections is higher. It is also higher stakes and currently unsolved, so will focus on that in this manuscript. 
+
+
+
+
+Dependent on border restrictions, so aim for cost less than that
+
+Two questions- will it work and is it better than alternatives. Both disease dependent, but for 
+
+
