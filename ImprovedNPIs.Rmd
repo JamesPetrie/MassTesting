@@ -2,15 +2,25 @@
 title: "Non-pharmaceutical interventions for respiratory pandemics: challenges and potential solutions"
 output: pdf_document
 ---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+require(data.table)
+require(ggplot2)
+
+```
+
+
+During Covid lots of NPI fatigue. closures, social distancing tolerated briefly in time of crisis, but dificult to enforce across whole population for long periods
 
 
 NPIs essential early in pandemic to buy time for treatment. For some pathogens, vaccines may not be as effective as needed, especially for engineered pathogens (or multi-release scenario). If NPIs inexpensive enough, may even be useful after vaccines are available (e.g. see farmed animal infectious disease control). In theory can achieve disease control very efficiently using targeted NPIs []
 
 In practice targeted NPIs have had difficulty with reliability
 - multiple points of failure (gathering information, making good decisions with information, convincing people to modify behaviour in time to prevent transmissions)
-- success rate at each step is not high enough (e.g. with 5 sequential steps that are each 50% effective, the overall effectiveness is 0.5^5 = 3.1%
+- e.g. 50% compliance with isolation, 30% compliance with isolation, 40% download app, 50% upload positive result, 30% testing rate (which could both be due to barely noticable symptoms, or lack of interest in testing after noticing symptoms), 40% sharing close contacts (on top of inability to reach unknown contacts without using contact tracing app or check-in system)
+- if the steps must occur sequentially and the success rate at each step is not high enough then the overall success rate is quite low (e.g. with 5 sequential steps that are each 50% effective, the overall effectiveness is 0.5^5 = 3.1%). Due to magnitude of problem, low success rate actions could still be overwhelmingly worthwhile by partially displacing more costly alternatives [], but they are not enough to solve entire problem.
 
-During covid, several steps in the targeted NPIs used depended on selfless behaviour from individuals and sufficient attention from under-resourced public health. E.g. contact tracing where a limited number of PH employees convinced people to quarantine after exposure - potentially losing income and leisure during this time for no personal benefit. Surprising targeted NPIs worked as well as they did [] given how actively disincentivized they were. testament to fair amount of pro-social behaviour in time of crisis and hard work by public health (contact tracing etc.). However, in many places targeted NPIs were insufficient alone.
+One reason for low success rate observed during covid is several steps in the targeted NPIs used depended on selfless behaviour from individuals and sufficient attention from under-resourced public health. E.g. contact tracing where a limited number of PH employees convinced people to quarantine after exposure - potentially losing income and leisure during this time for no personal benefit. Surprising targeted NPIs worked as well as they did [] given how actively disincentivized they were. testament to fair amount of pro-social behaviour in time of crisis and hard work by public health (contact tracing etc.). However, in many places targeted NPIs were insufficient alone.
 
 
 Without strong enough targeted NPIs, Infection rate rose to level where it had to be mediated by either infection-acquired immunity or substantially reduced socialization. This approach of reduced social contacts could be highly effective when supported by the population, but is extremely expensive (banning gatherings for everyone). In addition, broad NPIs were frequently only sufficiently supported when disease rate was relatively quite high (10e-3). This is the main mechanism for disease control that we would predict in a game-theory setting if actors were uncoordinated and self-serving.
@@ -28,6 +38,10 @@ In addition to mandating steps we propose to also incentivize them (both carrot 
 	-fairer: targeted interventions impose a significant burden on a small fraction of the population. Success positively impacts whole population so they deserve to be at least partially rewarded for it.
 	-internalizes previously external costs (which disincentivizes unnecessary use of harmful public health policies like long quarantine or broad social distancing )
 	-reliable over longer periods (avoid failure modes from Aus and China where lost public support)
+	
+	e.g. support exceeding wages for isolation
+	e.g incentive greater than inconvenience of testing
+	optionally can make this more sophisticated. Not just incentiviszing actions (which we need to take care to avoid Goodhart's Law), but incentivizing outcomes. What we would like is for individuals to not infect others. We can actually detect this using phylogenetics. Proposal: pay people $5k if no evolutionary ancestors detected on phylo tree
 	
 
 
@@ -57,22 +71,30 @@ $\gamma$ depends on compliance and accessibility within the population. Ideally 
 
 
 
-todo: compute fraction of transmissions after receiving positive test as function of frequency and delay for Covid
-
+Fraction of transmissions after receiving positive test as function of frequency and delay for Covid
+```{r}
+# uses results from ~/MassTesting/testDetect.jl
+dt = fread("~/MassTesting/FracTransmissions.csv")
+ggplot(dt, aes(x = TestPeriod, y = FracAfterPositive, colour = as.factor(TestDelay), group = TestDelay)) + geom_line() + geom_point() + ylim(0,1)
+```
 
 
 As described, expect to be sufficient for sustained low-cost control of almost completely asymptomatic R_0 = 2.5 virus, something that existing strategies cannot do. For more challenging scenarios (e.g. R_0 = 9, or substantial transmission capability on same day of negative test) it still provides a very strong starting point - reduce transmissions by large fraction, failure analysis of transmissions using phylo, norm setting for isolation, very high case detection (albeit delayed) to base contact tracing on. So could conceivably modify slightly and achieve control of dificult pathogens at similar cost (say with addition of immediate isolation of household members, increased testing frequency for contacts, and requirement to mask around strangers)
 
+
+
 # Cost
 
+```{r, echo=FALSE}
+
+fracDt = fread("~/MassTesting/FracTransmissions.csv")
 
 
-```{r}
-R0 = 3.0
 
-computeCost = function(testFraction = 0.95, isoFraction = 0.9, testFreq = 0.5){
-  transFraction = 0.8 # todo: make function of test frequency, delay, sensitivity, expected transmission function
-  importRate = 1e-4
+computeCost = function(importRate = 1e-4 , R0 = 2.0, testFraction = 0.95, isoFraction = 0.9, testPeriod = 2, testDelay = 1){
+  transFraction = fracDt[TestPeriod == testPeriod & TestDelay == testDelay, FracAfterPositive]
+  
+  testFreq = 1/testPeriod
   
   
   testCost = 10 + 40
@@ -80,18 +102,71 @@ computeCost = function(testFraction = 0.95, isoFraction = 0.9, testFreq = 0.5){
   
   Rt = R0*(1 - testFraction*transFraction*isoFraction)
   
+  if(Rt > 1) return(1)
+  
   dailyCostPerPerson = testFraction*testFreq*testCost + importRate*1/(1-Rt)*testFraction*isoCost
   gdpPerCapita = 70e3 # gdp per person in USA
   return(dailyCostPerPerson*365/gdpPerCapita)
 }
+
 ```
 
 
+# Cost vs import rate for different testing periods
+```{r}
+R0 = 2
 
+dt = data.table(expand.grid(ImportRate = 10^seq(-9, -2, length.out = 200), TestPeriod  = seq(0:4), TestDelay = c(0,1,2)))
+dt$Cost = sapply(1:nrow(dt), function(i){
+  computeCost(importRate = dt[i, ImportRate], R0 = R0, testPeriod = dt[i,TestPeriod], testDelay = dt[i,TestDelay] )
+} )
+
+ggplot(dt,aes(x= ImportRate, y = Cost, colour = as.factor(TestPeriod))) + geom_line() + scale_x_log10() +ylim(0,0.5)  + facet_wrap(~TestDelay)
+```
+
+
+With a PCR cost of \$40 per test, and \$10 incentive, testing everyone every 2 days with a 1 day test delay costs about 12\% of GDP when importation rate below 1e-4. This cost is dominated by the cost of testing. Only when imporation rate exceeds 1e-4 (in this scenario) that cost of incentivizing and supporting isolation becomes significant. 
+
+
+
+12\% GDP worthwhile for deadly pandemic, but quite dificult to mobilize, and harder to make the case for apparently less severe pandemics. Can we reduce this cost?
+
+automation to bring pcr cost down from \$40 to \$5 or less. 
+focus on convenience of intervention so cost of point of indifference drops from \$10 to \$5. 
+then would be 2.4\% GDP - much closer to being an easy choice.
+
+Can improve even further:
+
+targeting in space/time. with very low importation rate most areas won't have disease most of the time. Any information we can use to decide when/where to do frequent testing? 
+
+
+
+# Logistics
+
+PCR availability early in pandemic
+enforcement of regular testing
+transportation of samples
 
 
 
 # Notes:
+
+Need 95% success of most steps. This is totally possible - e.g. 97% drivers in US have an active drivers license
+
+Follow mandate and incentivize approach 
+
+Mandate to get compliance above 95%
+
+Incentivize so that at least 80% are happy with the transaction to ensure longevity of approach (among other reasons). Ideally nobody strongly against. Easier if just a nuisance, not something people feel very strongly about (eg vaccines, undue invasion of privacy)
+
+
+E.g. introduce drivers license somewhere they dont exist - there would be resistance. Modify by adding incentive for passing test- 3000$ or 2 weeks median wage. Much more likely to get support from individuals (neglecting budget issue)
+
+
+
+Human interface is the hard part- needs to be simple, sensible seeming, and robust to various incentives. With actions properly incentivized decision about application of interventions is mainly a budget issue. Here there is more room for sophistication with modern logistics, automation, scalable workforce, and risk targetting 
+
+
 
 
 Two scenarios:
@@ -103,6 +178,14 @@ Two scenarios:
 First is easier because import rate much lower and because willingness to spend to prevent infections is higher. It is also higher stakes and currently unsolved, so will focus on that in this manuscript. 
 
 
+
+extension: within-household contact tracing. Split R0 between household and not household. 
+$R_t = R_{0, H} (1 - \gamma \sigma_H \beta) + R_{0, N} (1 - \gamma \sigma_N \beta)$
+
+Here $\sigma_H$ is fraction of household contact transmissions to members outside household that occur after the index case has received a positive result. $\sigma_N$ is the fraction of transmissions to non-household members that would occur after receiving a positive result, and is computed the same way as before. If $\sigma_N$ is fairly high (>0.7), it $\sigma_H$ is likely quite close to 1 because there is much more time.
+
+
+extension: mask wearing around people that cannot be contacted 
 
 
 Dependent on border restrictions, so aim for cost less than that
