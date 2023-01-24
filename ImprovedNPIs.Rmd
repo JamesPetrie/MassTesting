@@ -99,13 +99,14 @@ fracDt = fread("~/MassTesting/FracTransmissions.csv")
 
 
 
-computeCost = function(importRate = 1e-4 , R0 = 2.0, testFraction = 0.95, isoFraction = 0.9, testPeriod = 2, testDelay = 1, poolSize = 1, incentiveCost = 10, logisticCost = 5, pcrCost = 40){
+# isoCost = 10*(100 + 200) + 0.5*3000 
+computeCost = function(importRate = 1e-4 , R0 = 2.0, testFraction = 0.95, isoFraction = 0.9, testPeriod = 2, testDelay = 1, poolSize = 1, incentiveCost = 10,  logisticCost = 5, pcrCost = 40, isoCost = 5000){
   transFraction = fracDt[TestPeriod == testPeriod & TestDelay == testDelay, FracAfterPositive]
   
   testFreq = 1/testPeriod
   
   
-  isoCost = 10*(100 + 200) + 0.5*3000
+  
   
   Rt = R0*(1 - testFraction*transFraction*isoFraction)
   
