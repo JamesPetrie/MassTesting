@@ -3,33 +3,42 @@ title: "Non-pharmaceutical interventions for respiratory pandemics: challenges a
 output: pdf_document
 ---
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE,echo = FALSE,cache=TRUE) 
 require(data.table)
 require(ggplot2)
 require(cowplot)
+require(metR)
+require(plyr)
 
 theme_set(theme(panel.grid.major.y = element_blank(),panel.grid.minor.y = element_blank()) + theme(legend.background = element_rect(fill = "white")) + theme_half_open() + background_grid()  + theme(text = element_text(size=20), axis.text = element_text(size=20)))
 ```
 
 
 
-# frequent testing
+# Frequent testing
+
+In a homogeneous population where fraction $\gamma$ test regularly, fraction $\sigma$ of counterfactual transmissions occur after receiving a positive test, and transmissions are reduced to fraction $\beta$ after receiving a positive test, the following equation gives the effective reproductive number.
+
+$R_e = R_0 \cdot (1 - \gamma \sigma \beta)$
+
+$\sigma$ depends on several factors, including: frequency of testing, delay before receiving test results, test sensitivity depending on viral load, viral load trajectory over time, and behaviour change after any symptoms. With information on transmission risk and test sensitivity over time we can estimate $\sigma$.
+
+For any infected individual $i$, data relevant to their infection can be summarized in vector $\pi_i$. This could include values like the date of infection, date of symptom onset, and potentially peak viral load. The expected transmissions on day $t$ can be estimated based on the individual data (as in Ferretti et al [https://www.medrxiv.org/content/10.1101/2020.09.04.20188516v2]) and is written as $E[T(t)|\pi_i]$, where $T(t)$ is the number of transmissions on day $t$. The probability of a test taken on day $t$ being positive can also be estimated [Petrie et al, ...], and is described as $P(Test(t)|\pi_i)$.
 
 
-Fraction of transmissions after receiving positive test as function of frequency and delay for Covid
-```{r}
+
+
+
+
+```{r,cache=FALSE}
 # uses results from ~/MassTesting/testDetect.jl
 dt = fread("~/MassTesting/FracTransmissions.csv")
 dt[, TestDelay := as.factor(TestDelay)]
-ggplot(dt, aes(x = TestPeriod, y = FracAfterPositive, colour = TestDelay)) + geom_line() + geom_point() + scale_x_continuous(expand = c(0, 0), limits = c(0,10), breaks = seq(0,10)) + scale_y_continuous(expand = c(0, 0), limits = c(0,1)) + guides(colour=guide_legend(title="Test Delay [Days]")) + xlab("Testing Period [Days]") + ylab("Fraction Counterfactual Transmissions \n After Receiving Positive Test")+ theme(legend.position = c(0.6, 0.8)) + theme(text = element_text(size=16))
+ggplot(dt, aes(x = 1/TestPeriod, y = FracAfterPositive, colour = TestDelay)) + geom_line() + geom_point() + scale_x_continuous(expand = c(0, 0), limits = c(0,1), breaks = c(1/30, 1/7, 1/4, 1/2, 1), labels = c("1/30", "1/7", "1/4", "1/2", "1")) + scale_y_continuous(expand = c(0, 0), limits = c(0,1)) + guides(colour=guide_legend(title="Test Delay [Days]")) + xlab("Testing Frequency [1/Days]") + ylab("Fraction Counterfactual Transmissions \n After Receiving Positive Test")+ theme(legend.position = c(0.7, 0.2)) + theme(text = element_text(size=16))
 ```
+Figure 1: Fraction of transmissions after receiving positive test as function of frequency and delay for Covid-19, conditioned on dates of infection and symptom onset.
 
 
-Useful to construct a very simplified mathematical model of the strategy to make explicit our assumptions and quantitively analyse points of failure. For simplicity, will only consider this strategy and not combinations of them. 
-
-In a homogeneous population where fraction $\gamma$ test regularly, fraction $\sigma$ of counterfactual transmissions occur after receiving a positive test (depending on frequency, delay, and relationship between test sensitivity and infectiousness), and transmissions are reduced to fraction $\beta$ after receiving a positive test, the following equation gives the effective reproductive number.
-
-$R_e = R_0 (1 - \gamma \sigma \beta)$
 
 
 ```{r}
@@ -44,6 +53,11 @@ dtRe = data.table(expand.grid(FracTest = seq(0.5,1, length.out=200), Label = dt$
 
 dtRe = merge(dt, dtRe, by = "Label")
 
+dtSweep =  data.table(expand.grid(FracTest = seq(0.5,1, length.out=200), IsoEffect =  seq(0.0,1, length.out=200)))
+
+dtSweep[, FracAfterPositive := (1-1/R0)/(IsoEffect*FracTest)]
+#dtSweep[IsoEffect > 1, FracAfterPositive := NA]
+
 dtRe[, IsoEffect := (1-1/R0)/(FracAfterPositive*FracTest)]
 dtRe[IsoEffect > 1, IsoEffect := NA]
 
@@ -55,8 +69,15 @@ showLabels = dt[(TestPeriod == 1 & TestDelay == 0)|
                      (TestPeriod == 7 & TestDelay == 2), 
                 Label]
 
-ggplot(dtRe[Label %in% showLabels],aes(x = FracTest, y = IsoEffect, colour = Label)) + geom_line() + scale_x_continuous(limits= c(0.6,1), n.breaks = 10) + scale_y_continuous(limits= c(0.6,1), n.breaks = 10 ) + geom_hline(yintercept = ausIsoEffect) #+ geom_text(aes(0.6, ausIsoEffect, label = "Effectiveness of State Quarantine in Australia", vjust = - 1))
 
+p = ggplot() + geom_line(data= dtRe[Label %in% showLabels],aes(x = FracTest, y = IsoEffect, colour = Label), linewidth = 1.2) + scale_x_continuous(limits= c(0.6,1), n.breaks = 5) + scale_y_continuous(limits= c(0.6,1), n.breaks = 5 ) + geom_hline(yintercept = ausIsoEffect, colour = "purple", linetype = "dashed", linewidth = 1.2) + ylab("Isolation Effectiveness") + xlab("Fraction Regularly Testing") + ggtitle("Testing and isolation needed \n to keep Re below 1") + guides(colour=guide_legend(title="Test Protocol"))+ coord_cartesian(expand=FALSE) 
+# geom_contour_fill(data = dtSweep[!is.na(FracAfterPositive) & FracAfterPositive < Inf], aes( x = FracTest, y = IsoEffect, z = FracAfterPositive), alpha = 0.5, breaks = seq(1.0, 0.5, length.out = 15)) +scale_fill_viridis_g( name = "Needed Fraction", labels = prettyNum) 
+#+ geom_text(aes(0.6, ausIsoEffect, label = "Effectiveness of State Quarantine in Australia", vjust = - 1))
+
+
+print(p)
+
+ggsave(p, filename = "~/MassTesting/figures/fracTransmissions.pdf")
 # 1/2.5 = 1 - g*s*b
 # g = (1-1/2.5)/(s*b)
 
@@ -65,25 +86,25 @@ ggplot(dtRe[Label %in% showLabels],aes(x = FracTest, y = IsoEffect, colour = Lab
 
 
 ```
-
-
-
-
-partial contact tracing:
-
-simple version is assume independence, but people who transmit likely transmit early, so have short incub? correlated?
-
-monte carlo branching model. sample testing offset from infection, sample incubation, sample test results, sample transmissions, sample incubation of infectees, sample testing offset, sample infectee test results. sum expected second degree transmissions.
-
-Track number of second degree infections. Average should be Re^2 ?
-
-
+Figure 2: Test and isolation adherence needed to keep $R_e$ below 1 for different testing frequencies and delays (assuming immuno-naive population and no other interventions used). For $R_0 = 2.5$ pathogen with incubation, transmissibility, and test sensitivity similar to Covid-19. Dashed purple line: isolation effectiveness in Australian travel quarantine facilities.
 
 
 
 # Cost
 
-```{r, echo=FALSE}
+There are two types of cost considered: fixed and variable. Fixed costs are mainly equipment capacity needed in advance of a pandemic. Variable costs include 
+
+(From https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0277867). 
+
+200k usd cost in equipment, can test 3000 samples per day (without pooling, and with 5 runs per day). Equipment lifetime 7-10 years 
+
+(From https://www.thelancet.com/journals/eclinm/article/PIIS2589-5370(21)00308-4/fulltext)
+
+\$10 USD to test each person when using 24-1 pooled saliva protocol. (including logistics, labour, pcr reagents)
+
+
+
+```{r}
 
 fracDt = fread("~/MassTesting/FracTransmissions.csv")
 
@@ -118,6 +139,12 @@ computeCost = function(importRate = 1e-4 , R0 = 2.0, testFraction = 0.95, isoFra
 ```
 
 
+
+
+
+
+
+\iffalse
 # Cost vs import rate basic
 ```{r}
 R0 = 2
@@ -129,7 +156,193 @@ dt$Cost = sapply(1:nrow(dt), function(i){
 
 ggplot(dt,aes(x= ImportRate, y = Cost, colour = as.factor(TestPeriod))) + geom_line() + scale_x_log10()+scale_y_log10(limits = c(0.01, 0.5), n.breaks = 8)
 ```
+\fi
 
+#cost vs import rate with pooled testing and realisticly cheaper steps
+```{r}
+fracDt = fread("~/MassTesting/FracTransmissions.csv")
+R0 = 2
+incentiveCost = 5
+logisticCost = 8
+poolSize = 24
+pcrCost = 48
+isoCost = 5e3
+testFraction = 0.95
+isoFraction = 0.9
+
+dt = data.table(expand.grid(ImportRate = 10^seq(-11, -2, length.out = 200), TestPeriod  = seq(0:4), TestDelay = 1))
+dt = rbindlist(llply(1:nrow(dt), function(i){
+  
+  importRate = dt[i, ImportRate]
+  testPeriod = dt[i,TestPeriod]
+  testDelay = dt[i,TestDelay]
+  
+
+  
+  transFraction = fracDt[TestPeriod == testPeriod & TestDelay == testDelay, FracAfterPositive]
+  
+  testFreq = 1/testPeriod
+  
+  Re = R0*(1 - testFraction*transFraction*isoFraction)
+  
+  if(Re > 1){
+    cost = NA
+    dailyTestCostPerPerson = NA
+    dailyIsoCostPerPerson = NA
+  }
+  else{
+      newInfectFrac = importRate*1/(1-Re) # fraction new infections (import and transmit per day) relative to total pop
+  
+    if(poolSize == 1){
+      testCost = testFreq*testFraction*(incentiveCost + logisticCost + pcrCost)
+    }else{
+      testCost = testFreq*testFraction*(incentiveCost + logisticCost + 1/poolSize*pcrCost + poolSize*newInfectFrac*testPeriod*pcrCost)
+    }
+      
+    gdpPerCapita = 70e3 # gdp per person in USA
+    
+    dailyTestCostPerPerson = testCost*365/gdpPerCapita
+    dailyIsoCostPerPerson = newInfectFrac*testFraction*isoCost*365/gdpPerCapita
+    
+    cost = dailyTestCostPerPerson + dailyIsoCostPerPerson
+  }
+  
+
+  return(data.table(Cost = cost, TestCost = dailyTestCostPerPerson, IsoCost = dailyIsoCostPerPerson, Re = Re, TestPeriod = testPeriod, ImportRate = importRate, TestDelay = testDelay, FractionInfectedDaily = importRate/(1-Re)))
+ 
+  
+
+} ))
+
+dtAll = copy(dt)
+dtAll[, Strategy := "Continuous Testing"]
+
+
+dt[, Capacity := 2*1/24]
+dt[ Capacity < 1/24 + 24*TestPeriod*FractionInfectedDaily, Cost := NA]
+
+dt[,TestPeriod := as.factor(TestPeriod)]
+ggplot(dt,aes(x= FractionInfectedDaily, y = Cost, colour = TestPeriod)) + geom_line() + scale_x_log10() +scale_y_log10(limits = c(0.01, 0.5), n.breaks = 8) 
+#+ geom_vline(xintercept = 1e-5, linetype = "dashed") + geom_vline(xintercept = 1e-9, linetype= "dashed")#+ylim(0,0.3)
+
+
+```
+Todo: change from import rate to daily cases (can convert to prevalence based on infectious period)
+Figure 3: Daily cost of strategy depending on disease prevalence. Cut off when prevalence exceeds testing capacity
+
+
+
+
+
+
+
+
+
+https://stats.stackexchange.com/questions/94311/does-the-estimated-overdispersion-parameter-of-negative-binomial-depend-on-mean
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7338915/
+
+rnbinom(1, size = 0.1, mu = 3 )
+
+
+```{r}
+sampleNumGenerations = function(Re, overdispersion=0.1, initialSize = 1){
+  if(Re >= 1.0) return(NA)
+  numInfected = initialSize
+  
+  count = 0
+  totalInfected = 0
+  while(count < 1e4 && numInfected > 0){
+    totalInfected = totalInfected + numInfected
+    count = count + 1
+    numInfected = sum(rnbinom(numInfected, size = overdispersion, mu = Re ))
+  }
+  return(data.table(NumGenerations = count, TotalInfected = totalInfected ))
+}
+
+
+estimateOutbreakDuration = function(Re, initialSize, tau = 5, safetyMargin = 10){
+  numGen = mean(sapply(1:10000, function(x) {dt = sampleNumGenerations(Re = Re, initialSize = initialSize); return(dt$NumGenerations)}))
+  return(tau*numGen + safetyMargin)
+}
+#mean(sapply(1:10000, function(x) {dt = sampleNumGenerations(Re = 0.9, initialSize = 10); return(dt$TotalInfected)}))
+
+
+steadyImportCost = function(importRate, popSize, Re, controlTime, dailyCost, infectionCost, detectionSize,  fracPopTarget, probExportPerInfected){
+  
+  numDailyImports = importRate*popSize
+  
+  if(is.na(controlTime)){
+    return(dailyCost + infectionCost*importRate*1/(1-Re))
+  }else{
+    outbreakSize = detectionSize/(1-Re)
+    outbreakCost = infectionCost*outbreakSize/popSize + fracPopTarget*controlTime*dailyCost
+    
+    if(probExportPerInfected*outbreakSize >= 1){
+      
+      return(dailyCost + infectionCost*importRate*1/(1-Re))
+    }
+    
+    
+    expectedNewOutbreaks = 1/(1 - probExportPerInfected*outbreakSize)
+    
+
+    
+    
+    return(numDailyImports*outbreakCost*expectedNewOutbreaks) # todo: consider recursive outbreak seeding
+  }
+}
+
+popSize = 60e6
+
+
+dt = dtAll[TestPeriod ==2 & TestDelay == 1]
+
+dtTimeTarget = copy(dt)
+dtTimeTarget[, Strategy := "Temporal Targeting"]
+dtTimeTarget[, FracPopTarget := 1]
+dtTimeTarget[, ProbExportPerInfected := 0]
+
+dtSpatioTempTarget = copy(dt)
+dtSpatioTempTarget[, Strategy := "Spatio-temporal Targeting"]
+dtSpatioTempTarget[, FracPopTarget := 10e3/60e6]
+dtSpatioTempTarget[, ProbExportPerInfected := 0.02]
+
+
+dtTarget = rbind(dtSpatioTempTarget, dtTimeTarget)
+
+
+detectionSize = 10
+dtTarget[ , LocalOutbreakDuration := estimateOutbreakDuration(Re, detectionSize, 5, 10), by = Re]
+
+dtTarget[, Cost := steadyImportCost(ImportRate, popSize, Re, LocalOutbreakDuration, TestCost, 5e3/70e3, detectionSize, FracPopTarget, ProbExportPerInfected), by = list(Re, LocalOutbreakDuration, TestCost, ImportRate, TestPeriod, TestDelay,FracPopTarget, ProbExportPerInfected )]
+
+dt = rbind(dt, dtTarget, fill = TRUE)
+
+dt[,TestPeriod := as.factor(TestPeriod)]
+ggplot(dt[ TestPeriod ==2 & TestDelay == 1],aes(x= ImportRate, y = Cost, colour =Strategy)) + geom_line() + scale_x_log10() +scale_y_log10(limits = c(0.0002, 0.5), n.breaks = 8) + geom_vline(xintercept = 1e-5, linetype = "dashed") + geom_vline(xintercept = 1e-9, linetype= "dashed")#+ylim(0,0.3)
+
+
+
+```
+Figure 4: daily cost of differently targeted frequent testing strategies
+
+
+Can be very cost effective for some diseases. How likely are these diseases?
+
+
+Todo:
+Fig 5: R0 vs mean incubation, with curves for diff testing params such that Re = 1
+
+
+Todo: describe usefulness even when Re from testing > 1
+
+
+Todo: describe potential implementation in detail
+
+
+
+\iffalse
+#Notes
 
 With a PCR cost of \$40 per test, and \$10 incentive, testing everyone every 2 days with a 1 day test delay costs about 12\% of GDP when importation rate below 1e-4. This cost is dominated by the cost of testing. Only when imporation rate exceeds 1e-4 (in this scenario) that cost of incentivizing and supporting isolation becomes significant. 
 
@@ -152,23 +365,34 @@ along with additional 4 hour delay, and slightly reduced sensitivity []
 fracPositive less than importRate*1/(1-Rt) = R0*1/(1 - testFraction*transFraction*isoFraction)
 
 
-#cost vs import rate with pooled testing and realisticly cheaper steps
-```{r}
-R0 = 2
 
-dt = data.table(expand.grid(ImportRate = 10^seq(-9, -2, length.out = 200), TestPeriod  = seq(0:4), TestDelay = 1))
-dt$Cost = sapply(1:nrow(dt), function(i){
-  computeCost(importRate = dt[i, ImportRate], R0 = R0, testPeriod = dt[i,TestPeriod], testDelay = dt[i,TestDelay], incentiveCost = 5, logisticCost = 3, poolSize = 32, pcrCost = 40, isoCost = 5e3 )
-} )
-
-ggplot(dt,aes(x= ImportRate, y = Cost, colour = as.factor(TestPeriod))) + geom_line() + scale_x_log10() +scale_y_log10(limits = c(0.01, 0.5), n.breaks = 8) #+ylim(0,0.3)
-```
 
 pooled testing to bring pcr cost down from \$40 to \$5 or less. 
 with \$10 per test would be 2.4\% GDP - much closer to being an easy choice.
 
 
+Todo:
+Vary, R0, incubation period. budget? hold import rate fixed at 1e-5?
+cost as function of prevalence when import rate fixed? point of insuficient capacity or budget?
 
 
 
+For testing every 2 days, 
+50 USD capital cost every 10 years per person. Or 5 USD per person per year to have sufficient pcr equipment ready (but not necessarily space or trained technicians)
+500k USD yearly salary for lab staff in India? maybe 5x more expensive in US or UK? 2.5M USD per year to have full staff on standby. 
+=  625USD per person per year (way too high)
+
+87% of 7.5 USD  = 6.5USD cost is laboratory consumables (rRT-PCR reagents and kits, plasticware and glass wares)
+
+
+# Extensions
+partial contact tracing:
+
+simple version is assume independence, but people who transmit likely transmit early, so have short incub? correlated?
+
+monte carlo branching model. sample testing offset from infection, sample incubation, sample test results, sample transmissions, sample incubation of infectees, sample testing offset, sample infectee test results. sum expected second degree transmissions.
+
+Track number of second degree infections. Average should be Re^2 ?
+
+\fi
 
