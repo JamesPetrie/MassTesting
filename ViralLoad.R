@@ -1,6 +1,7 @@
 require(data.table)
 require(pracma)
-require(dplyr)
+require(plyr)
+require(ggplot2)
 
 
 
@@ -121,12 +122,9 @@ fracAfterPositive(params)
 # plot (expected Transmissions before peak such that Re=1) vs timeToPeak for each strategy
 
 
-evaluateStrategy = function(testPeriod, testDelay, fracIso = 0.95, fracTest = 0.95){
-
+evaluateStrategy = function(params){
   
-  params = list(timeToPeak = 4*24, timeFromPeakTo0 = 6*24, logPeakLoad = 11, contactsPerHour = 13/24, testPeriod =testPeriod, testDelay =  testDelay)
-  
-  riseTimes = seq(12, 10*24, length.out = 20)
+  riseTimes = seq(12, 10*24, length.out = 10)
   dt = rbindlist(llply(riseTimes, function(timeToPeak){
     
     cutoffLoad = bisect(a = 0, b = 20, maxiter = 15, fun = function(logPeakLoad){
@@ -140,7 +138,7 @@ evaluateStrategy = function(testPeriod, testDelay, fracIso = 0.95, fracTest = 0.
       
       fracAfter = fracAfterPositive(testParams)
       
-      Re = R0*(1-fracAfter*fracIso*fracTest)
+      Re = R0*(1-fracAfter*params$fracIso*params$fracTest)
       return(1 - Re)
     })
     
@@ -152,16 +150,23 @@ evaluateStrategy = function(testPeriod, testDelay, fracIso = 0.95, fracTest = 0.
     R0 = sumTransmissions(0,testParams$timeToPeak + 4*24, testParams)
     return(data.table(MaxR0 = R0, Slope = testParams$logPeakLoad/timeToPeak, TimeToPeak = timeToPeak))
   }))
-  dt[ , TestDelay := testDelay]
-  dt[, TestPeriod := testPeriod]
-  dt[, FracIso := fracIso]
-  dt[,FracTest := fracTest]
+  dt[ , TestDelay := params$testDelay]
+  dt[, TestPeriod := params$testPeriod]
+  dt[, FracIso := params$fracIso]
+  dt[,FracTest := params$fracTest]
 
   return(dt)
 }
 
-dt = rbindlist(llply(24*c(1,2,3,4), function(testPeriod){
-  evaluateStrategy(testPeriod = testPeriod, testDelay = 24)
+inputParams = list(contactsPerHour = 13/24, testPeriods = 24*c(1,2,3,4), testDelay =  24, fracIso = 0.95, fracTest = 0.95)
+
+
+
+
+dt = rbindlist(llply(inputParams$testPeriods, function(testPeriod){
+  params = copy(inputParams)
+  params$testPeriod = testPeriod
+  evaluateStrategy(params)
 }))
 
 
