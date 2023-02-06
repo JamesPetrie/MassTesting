@@ -29,9 +29,9 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens",
                          max = 72,
                          value = 24),
              #sliderInput("contactsPerDay","Contacts Per Day:", min = 0,max = 40,value = 13),
+              sliderInput("fracTest","Fraction of population regularly testing:", min = 0,max = 0.995,value = 0.95),
              sliderInput("fracIso","Fraction of transmissions prevented by isolation:", min = 0,max = 0.995,value = 0.95),
-             sliderInput("fracTest","Fraction of population regularly testing:", min = 0,max = 0.995,value = 0.95),
-             checkboxGroupInput("testPeriods", "Days Between Tests", choices = list(1, 2,3,4,5,7,10,30), selected= (list(1,3,7)), inline = TRUE)
+             checkboxGroupInput("testPeriods", "Days Between Tests", choices = list(1, 2,3,5,7,10,30), selected= (list(1,3,7)), inline = TRUE)
              ),
           
           # Show a plot of the generated distribution
@@ -41,11 +41,11 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens",
        )
       ),
      tabPanel(
-       "Cost"
+       "Economic Cost"
       
       ),
      tabPanel(
-       "Settings",
+       "Model Parameters",
        sidebarLayout(
          sidebarPanel(
            sliderInput("relativeDeclineSlope","Relative Slope of Viral Decline:", min = 0.1,max = 3.0,value = 1.0),

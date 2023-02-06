@@ -14,10 +14,13 @@ generateControllabilityFigure = function(testPeriods, inputParams){
     evaluateStrategy(params)
   }))
   if(nrow(dt)>0){
-    freqNames = dt[, list(FreqLabel = paste("1 /", TestPeriod/24)), by = TestPeriod]
+    
+    freqNames = dt[, list(FreqLabel = paste("1 /", TestPeriod/24), PeriodLabel = paste(TestPeriod/24)), by = TestPeriod]
     setkey(freqNames, by = "TestPeriod")
     freqNames[, FreqLabel := factor(FreqLabel, levels = FreqLabel)]
+    freqNames[, PeriodLabel := factor(PeriodLabel, levels = PeriodLabel)]
     dt = merge(dt, freqNames, by = "TestPeriod")
+    
     dt[,DaysToPeak := TimeToPeak/24]
     
     pathogenDt = data.table(Pathogen = c("SARS-CoV-2 (Wuhan)", "SARS-CoV-2 (Omicron)", "Influenza (1918)", "SARS-CoV-1", "Measles"),
@@ -25,10 +28,9 @@ generateControllabilityFigure = function(testPeriods, inputParams){
     pathogenDt = pathogenDt[, list(DaysToPeak = DaysToPeak +0.5*c(1,0,-1,0), R0 = R0 + 0.5*c(0, 1,0,-1)), by = Pathogen ]
     
     p = ggplot() +
-      geom_line(data= dt, aes(x = DaysToPeak, y = MaxR0, colour = FreqLabel), linewidth = 1.4) + scale_y_sqrt(breaks = c(1,2,3,4,6,8,10,12,15, 20), limits = c(1,20)) + scale_x_continuous(breaks = 0:12) + 
-      guides(colour=guide_legend(title="Maximum Controllable\nR0 with Test Frequency \n [1/Days]")) + xlab("Time to Peak Viral Load [Days]") + ylab("R0")+
-      geom_mark_ellipse(data = pathogenDt, aes(x= DaysToPeak, y = R0, fill = Pathogen, label = Pathogen), 
-                        linewidth = 0.0, label.fontsize = 8)
+      geom_line(data= dt, aes(x = DaysToPeak, y = MaxR0, colour = PeriodLabel), linewidth = 1.4) + scale_y_sqrt(breaks = c(1,2,3,4,6,8,10,12,15, 20), limits = c(1,20)) + scale_x_continuous(breaks = 0:12) + 
+      guides(colour=guide_legend(title="Maximum Controllable R0 \n with test period [Days]")) + xlab("Time to Peak Viral Load [Days]") + ylab("R0")+
+      geom_mark_ellipse(data = pathogenDt, aes(x= DaysToPeak, y = R0, fill = Pathogen, label = Pathogen),size = 0.01 ,label.fontsize = 8)
       #geom_ellipse(data = data.table(), aes(x0 = 5, y0 = 3, a = 1, b = 1, angle = 0), fill = "orange", alpha = 0.4)
     
     #geom_ribbon(aes(ymin = 0, ymax = MaxR0, x = TimeToPeak/24, fill = FreqLabel), alpha = 0.5)
