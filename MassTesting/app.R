@@ -8,34 +8,59 @@
 #
 
 library(shiny)
-source("~/MassTesting/ViralLoad.R")
+
+source("~/MassTesting/buildFigures.R")
+
+
 
 # Define UI for application that draws a histogram
-ui <- fluidPage(
+ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens",
    
-   # Application title
-   titlePanel("Frequent Testing"),
-   
-   # Sidebar with a slider input for number of bins 
-   sidebarLayout(
-      sidebarPanel(
-         sliderInput("testDelay",
-                     "Test Delay [hours]:",
-                     min = 0,
-                     max = 72,
-                     value = 24),
-         #sliderInput("contactsPerDay","Contacts Per Day:", min = 0,max = 40,value = 13),
-         sliderInput("fracIso","Fraction of transmissions prevented by isolation:", min = 0,max = 0.995,value = 0.95),
-         sliderInput("fracTest","Fraction of population regularly testing:", min = 0,max = 0.995,value = 0.95),
-         checkboxGroupInput("testPeriods", "Days Between Tests", choices = list(0.5, 1, 2,3,4,5,7,10,30), selected= (list(1,3,10))),
-         sliderInput("simPrecision","Simulation Precision:", min = 0,max = 1,value = 0.2)
-         
+
+   tabsetPanel(
+     tabPanel(
+       "Intervention Effectiveness",
+       # Sidebar with a slider input for number of bins 
+       sidebarLayout(
+          sidebarPanel(
+             sliderInput("testDelay",
+                         "Test Delay [hours]:",
+                         min = 0,
+                         max = 72,
+                         value = 24),
+             #sliderInput("contactsPerDay","Contacts Per Day:", min = 0,max = 40,value = 13),
+             sliderInput("fracIso","Fraction of transmissions prevented by isolation:", min = 0,max = 0.995,value = 0.95),
+             sliderInput("fracTest","Fraction of population regularly testing:", min = 0,max = 0.995,value = 0.95),
+             checkboxGroupInput("testPeriods", "Days Between Tests", choices = list(1, 2,3,4,5,7,10,30), selected= (list(1,3,7)), inline = TRUE)
+             ),
+          
+          # Show a plot of the generated distribution
+          mainPanel(
+             plotOutput("controlRegion")
+          )
+       )
       ),
+     tabPanel(
+       "Cost"
       
-      # Show a plot of the generated distribution
-      mainPanel(
-         plotOutput("controlRegion")
-      )
+      ),
+     tabPanel(
+       "Settings",
+       sidebarLayout(
+         sidebarPanel(
+           sliderInput("relativeDeclineSlope","Relative Slope of Viral Decline:", min = 0.1,max = 3.0,value = 1.0),
+           sliderInput("maxDaysAfterPeak","Maximum Number of days after peak \n viral load that infection ends:", min = 0,max = 20,value = 30),
+           
+           plotOutput("viralTrajectory", height="130px"),
+           sliderInput("maxProbTransmitPerExposure","Maximum Probability of Transmission Per Exposure:", min = 0.1,max = 0.9,value = 0.2), # 0.3 would be consistent with 95% of measles household contacts infected -> 1 - 0.7^8 = 0.94
+           sliderInput("simPrecision","Simulation Precision:", min = 0,max = 1,value = 0.2)
+         ),
+         mainPanel(
+         )
+         
+       )
+     )
+
    )
 )
 
@@ -45,26 +70,25 @@ server <- function(input, output) {
    output$controlRegion <- renderPlot({
      
      #input$contactsPerDay
-     inputParams = c(contactsPerHour = 13/24, testDelay = input$testDelay, fracIso = input$fracIso, fracTest = input$fracTest, precision = input$simPrecision)
+     inputParams = c(contactsPerHour = 13/24, testDelay = input$testDelay, fracIso = input$fracIso, fracTest = input$fracTest, 
+                     precision = input$simPrecision, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure,
+                     relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak)
      
-     print(input$testPeriods)
-     dt = rbindlist(llply(24*as.numeric(input$testPeriods), function(testPeriod){
-       params = copy(inputParams)
-       params["testPeriod"] = testPeriod
-       evaluateStrategy(params)
-     }))
-     if(nrow(dt)>0){
-       freqNames = dt[, list(FreqLabel = paste("1 /", TestPeriod/24)), by = TestPeriod]
-       setkey(freqNames, by = "TestPeriod")
-       freqNames[, FreqLabel := factor(FreqLabel, levels = FreqLabel)]
-       dt = merge(dt, freqNames, by = "TestPeriod")
-       ggplot(dt, aes(x = TimeToPeak/24, y = MaxR0, colour = FreqLabel)) +
-         geom_line(linewidth = 1.4) + scale_y_continuous(breaks = 0:15, limits = c(0,10)) + scale_x_continuous(breaks = 0:10) + 
-         guides(colour=guide_legend(title="Test Frequency \n [1/Days]")) + xlab("Time to Peak Viral Load [Days]") + ylab("Maximum Controllable R0") 
-       
-         #geom_ribbon(aes(ymin = 0, ymax = MaxR0, x = TimeToPeak/24, fill = FreqLabel), alpha = 0.5)
-     }
+     generateControllabilityFigure(24*as.numeric(input$testPeriods), inputParams)
+     
+     
     })
+   
+   output$viralTrajectory <- renderPlot({
+     #reactive({
+       #req(getIncperMedianlogContour()) # can't plot it until these values have been calculated
+        
+     inputParams = c(relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak)
+     
+      plotViralLoads(inputParams) 
+       
+    # })
+   })
 }
 
 # Run the application 

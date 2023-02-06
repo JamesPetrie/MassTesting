@@ -1,11 +1,12 @@
 #include <Rcpp.h>
+#include <math.h>
 using namespace Rcpp;
 
 
 
 // computes probability of infection for a typical contact given viral load
 inline double probTransmit(double viralLoad, const NumericVector params = R_NilValue) {
-  return((viralLoad > 1) * (1 - exp(-0.2 * pow(viralLoad, 0.51) / (pow(viralLoad, 0.51) + pow(8.9e6, 0.51)))));
+  return((viralLoad > 1) * (1 - exp(-params["maxProbTransmitPerExposure"] * pow(viralLoad, 0.51) / (pow(viralLoad, 0.51) + pow(8.9e6, 0.51)))));
 }
 
 // computes probability of a positive PCR result given viral load
@@ -18,13 +19,14 @@ inline double probPositive(double viralLoad,const NumericVector params = R_NilVa
 }
 
 // compute viral load at a given time relative to infection
+// [[Rcpp::export]]
 inline double computeViralLoad(double time, const NumericVector params) {
   double logLoad;
   if (time < 0) {
     logLoad = 0;
   } else if (time <= params["timeToPeak"]) {
     logLoad = params["logPeakLoad"] * (time / params["timeToPeak"]);
-  } else if (time <= params["timeToPeak"] + params["timeFromPeakTo0"]) {
+  } else if (time <= params["timeToPeak"] + std::min((double)params["timeFromPeakTo0"],(double)params["maxTimeAfterPeak"])) {
     logLoad = params["logPeakLoad"] * (1 - ((time - params["timeToPeak"]) / params["timeFromPeakTo0"]));
   } else {
     logLoad = 0;
@@ -37,7 +39,7 @@ inline double computeViralLoad(double time, const NumericVector params) {
 // computes expected transmissions over specified hour range relative to day of infection
 // [[Rcpp::export]]
 double sumTransmissions(double startTime, double endTime,const NumericVector params){
-  int n =  10 + 90*params["precision"];
+  int n =   10 + 90*params["precision"];
   double a = startTime;
   double b = endTime;
   double h = (b - a)/n;
@@ -60,7 +62,8 @@ double fracAfterPositive(const NumericVector params){
   double testPeriod = params["testPeriod"];
   
   double testDelay = params["testDelay"];
-  double stopTime = params["timeToPeak"] + params["timeFromPeakTo0"];
+  double stopTime = params["timeToPeak"] + std::min((double)params["timeFromPeakTo0"],(double)params["maxTimeAfterPeak"]) ;
+  
   
   if(testPeriod <= 0) return(-1.0);
     
