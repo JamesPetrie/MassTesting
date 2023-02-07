@@ -5,11 +5,13 @@ using namespace Rcpp;
 
 
 // computes probability of infection for a typical contact given viral load
+// [[Rcpp::export]]
 inline double probTransmit(double viralLoad, const NumericVector params = R_NilValue) {
   return((viralLoad > 1) * (1 - exp(-params["maxProbTransmitPerExposure"] * pow(viralLoad, 0.51) / (pow(viralLoad, 0.51) + pow(8.9e6, 0.51)))));
 }
 
 // computes probability of a positive PCR result given viral load
+// [[Rcpp::export]]
 inline double probPositive(double viralLoad,const NumericVector params = R_NilValue) {
   if (viralLoad > 1e3) {
     return 1;

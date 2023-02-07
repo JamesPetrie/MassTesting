@@ -135,8 +135,9 @@ evaluateStrategy = function(params){
     testParams["timeFromPeakTo0"] = timeToPeak/testParams["relativeDeclineSlope"]
     
     if(1 > sumTransmissions(0,timeToPeak + testParams["timeFromPeakTo0"], testParams)*
-       ((1-fracAfterPositive(testParams)*params["fracIso"]*params["fracTest"]))){
-      cutoffLoad = NA
+       ((1-fracAfterPositive(testParams)*params["fracIso"]*params["fracTest"]))*
+       (1- testParams["maskEffect"])){
+      cutoffLoad = maxLoad
     }else{
       cutoffLoad = bisect(a = 0, b = maxLoad, maxiter = 10 + 30*params["precision"], fun = function(logPeakLoad){
         testParams["logPeakLoad"] = logPeakLoad
@@ -147,7 +148,7 @@ evaluateStrategy = function(params){
         
         fracAfter = fracAfterPositive(testParams)
         
-        Re = R0*(1-fracAfter*params["fracIso"]*params["fracTest"])
+        Re = R0*(1-fracAfter*params["fracIso"]*params["fracTest"])*(1- testParams["maskEffect"])
         return(1 - Re)
       })$root
     }
