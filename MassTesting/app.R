@@ -42,7 +42,21 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens",
        )
       ),
      tabPanel(
-       "Economic Cost"
+       "Economic Cost",   
+       sidebarLayout(
+         sidebarPanel(
+           sliderInput("variableTestCost","Variable Cost Per Test (USD):", min = 1,max = 100,value = 10),
+           sliderInput("isolationCost","Cost of supporting case isolation:", min = 0,max = 50000,value = 5000),
+          
+           sliderInput("fixedAnnualizedDailyTestCost","Annual Fixed Cost per Daily Test Capability:", min = 0.01,max = 10,value = 0.28)
+           
+         ),
+         mainPanel(
+           plotOutput("PrevalenceCost", height="500px")
+           
+         )
+         
+       )
        # as function of daily infections
        # as function of import rate (with targeted strategies as an option)
        # fixed cost vs maximum testing frequency
@@ -120,6 +134,11 @@ server <- function(input, output) {
      inputParams = c(contactsPerHour = 13/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak)
      plotTestSensitivity(inputParams) 
    })
+
+   output$PrevalenceCost <- renderPlot({
+     inputParams = c(variableTestCost = input$variableTestCost, isolationCost = input$isolationCost, fixedAnnualizedDailyTestCost = input$fixedAnnualizedDailyTestCost)
+     plotPrevalenceCost(as.numeric(input$testPeriods), inputParams) 
+   })   
 }
 
 # Run the application 

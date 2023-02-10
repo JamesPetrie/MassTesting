@@ -17,7 +17,7 @@ testParams = DataFrame(CSV.File(testParamsFile))
 testParams = testParams[:, 2:end]  
 
 
-dist = Distributions.LogNormal(1.58, 0.47)
+dist = Distributions.LogNormal(0.8, 0.47) #Distributions.LogNormal(1.58, 0.47)
 incubationProb = [Distributions.pdf(dist, x) for x = 0:30]
 incubationProb[1] = 0
 
@@ -89,7 +89,7 @@ end
 
 df = DataFrame(TestPeriod = Number[], TestDelay = Number[], FracAfterPositive = Number[])
 
-for testPeriod in 1:10 
+for testPeriod in 1:30 
   for testDelay in 0:1:4 
     fracAfter = fractionAfterPositive(testPeriod, testDelay)
     push!(df, [testPeriod  testDelay fracAfter]) 
@@ -97,4 +97,11 @@ for testPeriod in 1:10
 end
 
 print(df)
-CSV.write("/Users/jpetrie/MassTesting/FracTransmissions.csv", df)
+CSV.write("/Users/jpetrie/MassTesting/FracTransmissionsShortIncub.csv", df)
+
+
+
+# compute Re for a grid of testDelay, testPeriod, tracingFrac, tracingDelay  values
+# write results to csv
+
+

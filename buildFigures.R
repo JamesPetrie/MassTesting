@@ -95,6 +95,205 @@ plotTestSensitivity = function(params){
 }
 
 
+plotFracTransmissionsAfterPositive = function(params){
+  #ggplot(dtTest, aes(x = 1/TestPeriod, y = FracAfterPositive, colour =  as.factor(TestDelay))) + geom_line() + 
+    #geom_point() + scale_x_continuous(expand = c(0, 0), limits = c(0,1), breaks = c(1/30, 1/7, 1/4, 1/2, 1), labels = c("1/30", "1/7", "1/4", "1/2", "1")) + 
+    #scale_y_continuous(expand = c(0, 0), limits = c(0,1)) + guides(colour=guide_legend(title="Test Delay [Days]")) + xlab("Testing Frequency [1/Days]") + ylab("Fraction Counterfactual Transmissions \n After Receiving Positive Test")+ theme(legend.position = c(0.7, 0.2)) + theme(text = element_text(size=16))
+}
+
+plotPrevalenceCost = function(testPeriods, params){
+  # need cost per test
+  # need cost per isolation
+  # need test frequencies
+  
+  variableTestCost = params["variableTestCost"]
+  isoCost = params["isolationCost"]
+  fixedAnnualizedDailyTestCost = params["fixedAnnualizedDailyTestCost"]
+  
+  dt = data.table(expand.grid(DailyFracInfected = 10^seq(-7, -1, length.out = 200), TestPeriod  = testPeriods))
+  dt = rbindlist(llply(1:nrow(dt), function(i){
+    
+    dailyInfections = dt[i, DailyFracInfected]
+    testPeriod = dt[i,TestPeriod]
+   
+    
+    
+    testFreq = 1/testPeriod
+    
+
+    testCost = testFreq*variableTestCost
+
+    
+    gdpPerCapita = 70e3 # gdp per person in USA
+    
+    dailyTestCostPerPerson = testCost*365/gdpPerCapita
+    dailyIsoCostPerPerson = dailyInfections*isoCost*365/gdpPerCapita
+    
+    dailyTotalCost = dailyTestCostPerPerson + dailyIsoCostPerPerson
+    
+    
+    
+    return(data.table(TotalCost = dailyTotalCost, TestCost = dailyTestCostPerPerson, IsoCost = dailyIsoCostPerPerson,  TestPeriod = testPeriod, FractionInfectedDaily = dailyInfections))
+  } ))
+  
+  dt[,AnnualizedFixedCostPerPerson := fixedAnnualizedDailyTestCost/TestPeriod]
+
+  dt[,PeriodDescription := paste0(TestPeriod, " ($",round(AnnualizedFixedCostPerPerson, digits = 3), " per person per year fixed cost)" )]
+  
+  dtLong = melt(dt, id.vars = c(
+    "FractionInfectedDaily", "PeriodDescription"), measure.vars = c("TotalCost",  "IsoCost") )
+  
+  dtLong[ variable == "TotalCost", variable := "Total Cost"]
+  dtLong[ variable == "IsoCost", variable := "Isolation Cost"]
+  
+ 
+  
+  
+  ggplot() +geom_line(data = dtLong, aes(x= FractionInfectedDaily, y = value, linetype = variable, group = paste(variable,PeriodDescription)),  linewidth = 2) + geom_line(data = dtLong[variable == "Total Cost"], aes(x= FractionInfectedDaily, y = value, colour = PeriodDescription), linewidth = 2) +
+    scale_x_log10() +scale_y_log10(limits = c(0.005, 0.5), n.breaks = 8) + labs(x = "Daily Fraction of Population Infected", y = "Daily Fraction of GDP") + 
+    guides(colour = guide_legend(nrow = 2)) + theme(legend.position = c(0.1, 0.8)) +guides(colour=guide_legend(title="Test period [Days]"),linetype=guide_legend(title="Cost Type")) +
+    ggtitle("Daily Testing and Isolation Cost During Outbreak")
+  
+}
+
+plotImportCost = function(){
+  
+  sampleNumGenerations = function(Re, overdispersion=0.1, initialSize = 1){
+    if(Re >= 1.0) return(NA)
+    numInfected = initialSize
+    
+    count = 0
+    totalInfected = 0
+    while(count < 1e4 && numInfected > 0){
+      totalInfected = totalInfected + numInfected
+      count = count + 1
+      numInfected = sum(rnbinom(numInfected, size = overdispersion, mu = Re ))
+    }
+    return(data.table(NumGenerations = count, TotalInfected = totalInfected ))
+  }
+  
+  
+  estimateOutbreakDuration = function(Re, initialSize, tau = 5, safetyMargin = 10){
+    numGen = mean(sapply(1:10000, function(x) {dt = sampleNumGenerations(Re = Re, initialSize = initialSize); return(dt$NumGenerations)}))
+    return(tau*numGen + safetyMargin)
+  }
+  #mean(sapply(1:10000, function(x) {dt = sampleNumGenerations(Re = 0.9, initialSize = 10); return(dt$TotalInfected)}))
+  
+  
+  steadyImportCost = function(importRate, popSize, Re, controlTime, dailyCost, infectionCost, detectionSize,  fracPopTarget, probExportPerInfected){
+    
+    numDailyImports = importRate*popSize
+    
+    if(is.na(controlTime)){
+      return(dailyCost + infectionCost*importRate*1/(1-Re))
+    }else{
+      outbreakSize = detectionSize/(1-Re)
+      outbreakCost = infectionCost*outbreakSize/popSize + fracPopTarget*controlTime*dailyCost
+      
+      if(probExportPerInfected*outbreakSize >= 1){
+        
+        return(dailyCost + infectionCost*importRate*1/(1-Re))
+      }
+      
+      
+      expectedNewOutbreaks = 1/(1 - probExportPerInfected*outbreakSize)
+      
+      
+      
+      
+      return(numDailyImports*outbreakCost*expectedNewOutbreaks) # todo: consider recursive outbreak seeding
+    }
+  }
+  
+  popSize = 60e6
+  fracDt = fread("~/MassTesting/FracTransmissions.csv")
+  R0 = 2
+  incentiveCost = 5
+  logisticCost = 8
+  poolSize = 24
+  pcrCost = 48
+  isoCost = 5e3
+  testFraction = 0.95
+  isoFraction = 0.9
+  testPeriod = 2
+  testDelay = 1
+  
+  dt = rbindlist(llply(10^seq(-11, -2, length.out = 200), function(importRate){
+    
+    transFraction = fracDt[TestPeriod == testPeriod & TestDelay == testDelay, FracAfterPositive]
+    
+    testFreq = 1/testPeriod
+    
+    Re = R0*(1 - testFraction*transFraction*isoFraction)
+    
+    if(Re > 1){
+      cost = NA
+      dailyTestCostPerPerson = NA
+      dailyIsoCostPerPerson = NA
+    }
+    else{
+      newInfectFrac = importRate*1/(1-Re) # fraction new infections (import and transmit per day) relative to total pop
+      
+      if(poolSize == 1){
+        testCost = testFreq*testFraction*(incentiveCost + logisticCost + pcrCost)
+      }else{
+        testCost = testFreq*testFraction*(incentiveCost + logisticCost + 1/poolSize*pcrCost + poolSize*newInfectFrac*testPeriod*pcrCost)
+      }
+      
+      gdpPerCapita = 70e3 # gdp per person in USA
+      
+      dailyTestCostPerPerson = testCost*365/gdpPerCapita
+      dailyIsoCostPerPerson = newInfectFrac*testFraction*isoCost*365/gdpPerCapita
+      
+      cost = dailyTestCostPerPerson + dailyIsoCostPerPerson
+    }
+    
+    
+    return(data.table(Cost = cost, TestCost = dailyTestCostPerPerson, IsoCost = dailyIsoCostPerPerson, Re = Re, TestPeriod = testPeriod, ImportRate = importRate, TestDelay = testDelay, FractionInfectedDaily = importRate/(1-Re)))
+    
+  } ))
+  
+  dt[, Strategy := "Continuous Testing"]
+  
+  
+  
+  
+  dtTimeTarget = copy(dt)
+  dtTimeTarget[, Strategy := "Temporal Targeting"]
+  dtTimeTarget[, FracPopTarget := 1]
+  dtTimeTarget[, ProbExportPerInfected := 0]
+  
+  dtSpatioTempTarget = copy(dt)
+  dtSpatioTempTarget[, Strategy := "Spatio-temporal Targeting (10k person divisions)" ]
+  dtSpatioTempTarget[, FracPopTarget := 10e3/60e6]
+  dtSpatioTempTarget[, ProbExportPerInfected := 0.02]
+  
+  
+  dtTarget = rbind(dtSpatioTempTarget, dtTimeTarget)
+  
+  
+  detectionSize = 10
+  dtTarget[ , LocalOutbreakDuration := estimateOutbreakDuration(Re, detectionSize, 5, 10), by = Re]
+  
+  dtTarget[, Cost := steadyImportCost(ImportRate, popSize, Re, LocalOutbreakDuration, TestCost, 5e3/70e3, detectionSize, FracPopTarget, ProbExportPerInfected), by = list(Re, LocalOutbreakDuration, TestCost, ImportRate, TestPeriod, TestDelay,FracPopTarget, ProbExportPerInfected )]
+  
+  dt = rbind(dt, dtTarget, fill = TRUE)
+  
+  dt[,TestPeriod := as.factor(TestPeriod)]
+  ggplot(dt[ TestPeriod ==2 & TestDelay == 1],aes(x= ImportRate, y = Cost, colour =Strategy)) + geom_line(linewidth = 2) + 
+    geom_vline(xintercept = 1e-5, linetype = "dashed", linewidth = 2) + annotate("text", x=6.5*1e-5, y=0.01, label="1000 cases \nper day (UK)", size = 6 ) +
+    geom_vline(xintercept = 1e-9, linetype= "dashed", linewidth = 2) +annotate("text", x=6.5*1e-9, y=0.01, label="0.1 cases \nper day (UK)", size = 6 )+
+    theme(legend.position = "bottom") +  guides(colour = guide_legend(nrow = 3)) +
+    scale_x_log10(labels = trans_format("log10", math_format(10^.x))) + scale_y_log10(limits = c(0.001, 0.5), labels = trans_format("log10", math_format(10^.x)))+
+    labs(x = "Daily Imported Cases Relative to Population Size", y = "Daily Fraction of GDP") + 
+    theme(text = element_text(size=24), axis.text = element_text(size=24))
+    #+ylim(0,0.3)
+  
+  
+  
+}
+
+
 
 
 
@@ -102,5 +301,6 @@ plotTestSensitivity = function(params){
 inputParams = c(contactsPerHour = 13/24, testDelay = 12, fracIso = 0.9, fracTest = 0.9, precision = 0.15, maxProbTransmitPerExposure = 0.3, relativeDeclineSlope = 1.0, maxTimeAfterPeak= 24*30, logPeakLoad = 10)
 
 #generateControllabilityFigure(c(24, 48), inputParams)
-plotTrajectories(inputParams)
+#plotTrajectories(inputParams)
+plotImportCost()
 

@@ -32,45 +32,61 @@ For any infected individual $i$, data relevant to their infection can be summari
 
 ```{r,cache=FALSE}
 # uses results from ~/MassTesting/testDetect.jl
-dt = fread("~/MassTesting/FracTransmissions.csv")
-dt[, TestDelay := as.factor(TestDelay)]
-ggplot(dt, aes(x = 1/TestPeriod, y = FracAfterPositive, colour = TestDelay)) + geom_line() + geom_point() + scale_x_continuous(expand = c(0, 0), limits = c(0,1), breaks = c(1/30, 1/7, 1/4, 1/2, 1), labels = c("1/30", "1/7", "1/4", "1/2", "1")) + scale_y_continuous(expand = c(0, 0), limits = c(0,1)) + guides(colour=guide_legend(title="Test Delay [Days]")) + xlab("Testing Frequency [1/Days]") + ylab("Fraction Counterfactual Transmissions \n After Receiving Positive Test")+ theme(legend.position = c(0.7, 0.2)) + theme(text = element_text(size=16))
+dtTest = fread("~/MassTesting/FracTransmissions.csv")
+ggplot(dtTest, aes(x = 1/TestPeriod, y = FracAfterPositive, colour =  as.factor(TestDelay))) + geom_line() + geom_point() + scale_x_continuous(expand = c(0, 0), limits = c(0,1), breaks = c(1/30, 1/7, 1/4, 1/2, 1), labels = c("1/30", "1/7", "1/4", "1/2", "1")) + scale_y_continuous(expand = c(0, 0), limits = c(0,1)) + guides(colour=guide_legend(title="Test Delay [Days]")) + xlab("Testing Frequency [1/Days]") + ylab("Fraction Counterfactual Transmissions \n After Receiving Positive Test")+ theme(legend.position = c(0.7, 0.2)) + theme(text = element_text(size=16))
 ```
 Figure 1: Fraction of transmissions after receiving positive test as function of frequency and delay for Covid-19, conditioned on dates of infection and symptom onset.
 
 
 
 
+```{r, fig.align = 'center'}
+
+
+dtSweep =  data.table(expand.grid(FracTest = seq(0.5,1, length.out=200), IsoEffect =  seq(0.5,1, length.out=200), TestPeriod = c(1,4,7), TestDelay = c(0,1,2)))
+
+dt = merge(dtSweep, dtTest, by = c("TestDelay", "TestPeriod"))
+dt[, FractionR0 := (1- FracTest*FracAfterPositive*IsoEffect)]
+
+dt[, FreqLabel := as.factor(paste0("Frequency=1/",TestPeriod))]
+dt[, DelayLabel := as.factor(paste0("Delay=",TestDelay))]
+
+breaks = seq(20, 80, by = 30)
+labels = paste0(breaks, "%")
+
+
+p = ggplot(dt, aes(x = FracTest, y = IsoEffect))  + geom_contour_fill(aes(z = 100*(1 - FractionR0))) + scale_fill_viridis_c(option = "magma", name = "Percent Reduction in R", breaks = breaks, labels = labels) + facet_grid(  DelayLabel ~ FreqLabel ) + theme(strip.background = element_blank()) +scale_x_continuous(labels = prettyNum) + scale_y_continuous(labels = prettyNum) + theme(legend.text = element_text(size = 10), axis.text =element_text(size = 16)) + theme(legend.key.size = unit(0.6, "cm")) + theme(legend.position="bottom") + ylab("Isolation Effectiveness") + xlab("Fraction Testing")+ theme(strip.text = element_text(size = 14))
+
+print(p)
+
+```
+
 ```{r}
-R0 = 2.5
 
 ausIsoEffect = 0.9939
 
-
+dt = dtTest[TestPeriod %in% c(1,4,7) & TestDelay %in% c(0,1,2)]
 
 dt[, Label := paste0("Period=", TestPeriod,", Delay=",TestDelay)]
-dtRe = data.table(expand.grid(FracTest = seq(0.5,1, length.out=200), Label = dt$Label))
+
+dtRe = data.table(expand.grid(FracTest = seq(0.5,1, length.out=200), Label = dt$Label, R0 = c(1.5, 4.0, 12.0 )))
 
 dtRe = merge(dt, dtRe, by = "Label")
 
-dtSweep =  data.table(expand.grid(FracTest = seq(0.5,1, length.out=200), IsoEffect =  seq(0.0,1, length.out=200)))
+#dtSweep =  data.table(expand.grid(FracTest = seq(0.5,1, length.out=200), IsoEffect =  seq(0.0,1, length.out=200), R0 = c(1.5, 4.0, 12.0 )))
 
-dtSweep[, FracAfterPositive := (1-1/R0)/(IsoEffect*FracTest)]
+#dtSweep[, FracAfterPositive := (1-1/R0)/(IsoEffect*FracTest)]
 #dtSweep[IsoEffect > 1, FracAfterPositive := NA]
 
 dtRe[, IsoEffect := (1-1/R0)/(FracAfterPositive*FracTest)]
 dtRe[IsoEffect > 1, IsoEffect := NA]
 
 
-showLabels = dt[(TestPeriod == 1 & TestDelay == 0)|
-                     (TestPeriod == 1 & TestDelay == 1)|
-                     (TestPeriod == 2 & TestDelay == 1)|
-                     (TestPeriod == 3 & TestDelay == 1)|
-                     (TestPeriod == 7 & TestDelay == 2), 
-                Label]
+#showLabels = dt[(TestPeriod == 1 & TestDelay == 0)| (TestPeriod == 1 & TestDelay == 1)|(TestPeriod == 2 & TestDelay == 1)|(TestPeriod == 3 & TestDelay == 1)|(TestPeriod == 7 & TestDelay == 2),    Label]
 
+dtRe[, R0Label := factor(paste0("R0=", R0), levels = c("R0=1.5", "R0=4", "R0=12")) ]
 
-p = ggplot() + geom_line(data= dtRe[Label %in% showLabels],aes(x = FracTest, y = IsoEffect, colour = Label), linewidth = 1.2) + scale_x_continuous(limits= c(0.6,1), n.breaks = 5) + scale_y_continuous(limits= c(0.6,1), n.breaks = 5 ) + geom_hline(yintercept = ausIsoEffect, colour = "purple", linetype = "dashed", linewidth = 1.2) + ylab("Isolation Effectiveness") + xlab("Fraction Regularly Testing") + ggtitle("Testing and isolation needed \n to keep Re below 1") + guides(colour=guide_legend(title="Test Protocol"))+ coord_cartesian(expand=FALSE) 
+p = ggplot() + geom_line(data= dtRe,aes(x = FracTest, y = IsoEffect, colour = paste0("1/",TestPeriod), linetype = as.factor(TestDelay)), linewidth = 1.2) + scale_x_continuous(limits= c(0.5,1), n.breaks = 5) + scale_y_continuous(limits= c(0.5,1), n.breaks = 5 ) + geom_hline(yintercept = ausIsoEffect, colour = "purple", linetype = "dashed", linewidth = 1.2) + ylab("Minimum Necessary \n Isolation Effectiveness") + xlab("Fraction Regularly Testing")  + guides(colour=guide_legend(title="Test Frequency"), linetype=guide_legend(title="Test Delay"))+ coord_cartesian(expand=FALSE) + facet_wrap(~R0Label) + theme(strip.background = element_blank()) #+ ggtitle("Testing and isolation needed \n to keep Re below 1 (with R0 = 2.5)")
 # geom_contour_fill(data = dtSweep[!is.na(FracAfterPositive) & FracAfterPositive < Inf], aes( x = FracTest, y = IsoEffect, z = FracAfterPositive), alpha = 0.5, breaks = seq(1.0, 0.5, length.out = 15)) +scale_fill_viridis_g( name = "Needed Fraction", labels = prettyNum) 
 #+ geom_text(aes(0.6, ausIsoEffect, label = "Effectiveness of State Quarantine in Australia", vjust = - 1))
 
@@ -80,6 +96,7 @@ print(p)
 ggsave(p, filename = "~/MassTesting/figures/fracTransmissions.pdf")
 # 1/2.5 = 1 - g*s*b
 # g = (1-1/2.5)/(s*b)
+
 
 
 
@@ -170,10 +187,10 @@ isoCost = 5e3
 testFraction = 0.95
 isoFraction = 0.9
 
-dt = data.table(expand.grid(ImportRate = 10^seq(-11, -2, length.out = 200), TestPeriod  = seq(0:4), TestDelay = 1))
+dt = data.table(expand.grid(DailyFracInfected = 10^seq(-7, -1, length.out = 200), TestPeriod  = seq(0:4), TestDelay = 1))
 dt = rbindlist(llply(1:nrow(dt), function(i){
   
-  importRate = dt[i, ImportRate]
+  dailyInfections = dt[i, DailyFracInfected]
   testPeriod = dt[i,TestPeriod]
   testDelay = dt[i,TestDelay]
   
@@ -185,54 +202,55 @@ dt = rbindlist(llply(1:nrow(dt), function(i){
   
   Re = R0*(1 - testFraction*transFraction*isoFraction)
   
-  if(Re > 1){
-    cost = NA
-    dailyTestCostPerPerson = NA
-    dailyIsoCostPerPerson = NA
-  }
-  else{
-      newInfectFrac = importRate*1/(1-Re) # fraction new infections (import and transmit per day) relative to total pop
-  
-    if(poolSize == 1){
-      testCost = testFreq*testFraction*(incentiveCost + logisticCost + pcrCost)
-    }else{
-      testCost = testFreq*testFraction*(incentiveCost + logisticCost + 1/poolSize*pcrCost + poolSize*newInfectFrac*testPeriod*pcrCost)
-    }
-      
-    gdpPerCapita = 70e3 # gdp per person in USA
-    
-    dailyTestCostPerPerson = testCost*365/gdpPerCapita
-    dailyIsoCostPerPerson = newInfectFrac*testFraction*isoCost*365/gdpPerCapita
-    
-    cost = dailyTestCostPerPerson + dailyIsoCostPerPerson
-  }
-  
 
-  return(data.table(Cost = cost, TestCost = dailyTestCostPerPerson, IsoCost = dailyIsoCostPerPerson, Re = Re, TestPeriod = testPeriod, ImportRate = importRate, TestDelay = testDelay, FractionInfectedDaily = importRate/(1-Re)))
+  if(poolSize == 1){
+    testCost = testFreq*testFraction*(incentiveCost + logisticCost + pcrCost)
+  }else{
+    testCost = testFreq*testFraction*(incentiveCost + logisticCost + 1/poolSize*pcrCost + poolSize*dailyInfections*testPeriod*pcrCost)
+  }
+    
+  gdpPerCapita = 70e3 # gdp per person in USA
+  
+  dailyTestCostPerPerson = testCost*365/gdpPerCapita
+  dailyIsoCostPerPerson = dailyInfections*testFraction*isoCost*365/gdpPerCapita
+  
+  dailyTotalCost = dailyTestCostPerPerson + dailyIsoCostPerPerson
+
+
+
+  return(data.table(Cost = dailyTotalCost, TestCost = dailyTestCostPerPerson, IsoCost = dailyIsoCostPerPerson, Re = Re, TestPeriod = testPeriod, TestDelay = testDelay, FractionInfectedDaily = dailyInfections))
  
   
 
 } ))
 
-dtAll = copy(dt)
-dtAll[, Strategy := "Continuous Testing"]
+
+#dt[, Capacity := 2*1/24]
+dt[ , CapacityNeeded := pmin(1/TestPeriod, 1/TestPeriod*(1/24 + 24*TestPeriod*FractionInfectedDaily))]
+#dt[CapacityNeeded > Capacity, Cost := NA]
+dt = dt[TestPeriod <= 3]
+dt[,Description := paste(TestPeriod, "(Re=")]
+
+dtLong = melt(dt, id.vars = c(
+  "FractionInfectedDaily","TestDelay", "TestPeriod"), measure.vars = c("Cost", "TestCost", "IsoCost") )
 
 
-dt[, Capacity := 2*1/24]
-dt[ Capacity < 1/24 + 24*TestPeriod*FractionInfectedDaily, Cost := NA]
-
-dt[,TestPeriod := as.factor(TestPeriod)]
-ggplot(dt,aes(x= FractionInfectedDaily, y = Cost, colour = TestPeriod)) + geom_line() + scale_x_log10() +scale_y_log10(limits = c(0.01, 0.5), n.breaks = 8) 
+p1 = ggplot(dtLong, aes(x= FractionInfectedDaily, y = value, colour = as.factor(TestPeriod), linetype = variable)) + geom_line() + scale_x_log10() +scale_y_log10(limits = c(0.01, 0.5), n.breaks = 8) 
+#+ geom_vline(xintercept = 1e-5, linetype = "dashed") + geom_vline(xintercept = 1e-9, linetype= "dashed")#+ylim(0,0.3)
+p2 = ggplot(dt,aes(x= FractionInfectedDaily, y = CapacityNeeded, colour = as.factor(TestPeriod))) + geom_line() + scale_x_log10() +scale_y_log10(limits = c(0.01, 1), n.breaks = 8) 
 #+ geom_vline(xintercept = 1e-5, linetype = "dashed") + geom_vline(xintercept = 1e-9, linetype= "dashed")#+ylim(0,0.3)
 
+print(p1)
+print(p2)
 
 ```
-Todo: change from import rate to daily cases (can convert to prevalence based on infectious period)
-Figure 3: Daily cost of strategy depending on disease prevalence. Cut off when prevalence exceeds testing capacity
+Figure 3: Daily cost of strategy depending on disease prevalence. Split by isolation cost and testing cost. Fig b: capacity requirement with prevalence. todo: show Re for each strategy in legend?
 
 
 
 
+todo: justify probability of export between regions
+todo: justify detection size
 
 
 
@@ -293,9 +311,57 @@ steadyImportCost = function(importRate, popSize, Re, controlTime, dailyCost, inf
 }
 
 popSize = 60e6
+fracDt = fread("~/MassTesting/FracTransmissions.csv")
+R0 = 2
+incentiveCost = 5
+logisticCost = 8
+poolSize = 24
+pcrCost = 48
+isoCost = 5e3
+testFraction = 0.95
+isoFraction = 0.9
+testPeriod = 2
+testDelay = 1
+
+dt = rbindlist(llply(10^seq(-11, -2, length.out = 200), function(importRate){
+  
+  transFraction = fracDt[TestPeriod == testPeriod & TestDelay == testDelay, FracAfterPositive]
+  
+  testFreq = 1/testPeriod
+  
+  Re = R0*(1 - testFraction*transFraction*isoFraction)
+  
+  if(Re > 1){
+    cost = NA
+    dailyTestCostPerPerson = NA
+    dailyIsoCostPerPerson = NA
+  }
+  else{
+      newInfectFrac = importRate*1/(1-Re) # fraction new infections (import and transmit per day) relative to total pop
+  
+    if(poolSize == 1){
+      testCost = testFreq*testFraction*(incentiveCost + logisticCost + pcrCost)
+    }else{
+      testCost = testFreq*testFraction*(incentiveCost + logisticCost + 1/poolSize*pcrCost + poolSize*newInfectFrac*testPeriod*pcrCost)
+    }
+      
+    gdpPerCapita = 70e3 # gdp per person in USA
+    
+    dailyTestCostPerPerson = testCost*365/gdpPerCapita
+    dailyIsoCostPerPerson = newInfectFrac*testFraction*isoCost*365/gdpPerCapita
+    
+    cost = dailyTestCostPerPerson + dailyIsoCostPerPerson
+  }
+  
+
+  return(data.table(Cost = cost, TestCost = dailyTestCostPerPerson, IsoCost = dailyIsoCostPerPerson, Re = Re, TestPeriod = testPeriod, ImportRate = importRate, TestDelay = testDelay, FractionInfectedDaily = importRate/(1-Re)))
+
+} ))
+
+dt[, Strategy := "Continuous Testing"]
 
 
-dt = dtAll[TestPeriod ==2 & TestDelay == 1]
+
 
 dtTimeTarget = copy(dt)
 dtTimeTarget[, Strategy := "Temporal Targeting"]
@@ -319,7 +385,7 @@ dtTarget[, Cost := steadyImportCost(ImportRate, popSize, Re, LocalOutbreakDurati
 dt = rbind(dt, dtTarget, fill = TRUE)
 
 dt[,TestPeriod := as.factor(TestPeriod)]
-ggplot(dt[ TestPeriod ==2 & TestDelay == 1],aes(x= ImportRate, y = Cost, colour =Strategy)) + geom_line() + scale_x_log10() +scale_y_log10(limits = c(0.0002, 0.5), n.breaks = 8) + geom_vline(xintercept = 1e-5, linetype = "dashed") + geom_vline(xintercept = 1e-9, linetype= "dashed")#+ylim(0,0.3)
+ggplot(dt[ TestPeriod ==2 & TestDelay == 1],aes(x= ImportRate, y = Cost, colour =Strategy)) + geom_line() + scale_x_log10() +scale_y_log10(limits = c(0.0002, 0.5), n.breaks = 8) + geom_vline(xintercept = 1e-5, linetype = "dashed") + geom_vline(xintercept = 1e-9, linetype= "dashed") #+ theme(legend.position = "bottom") #+ylim(0,0.3)
 
 
 
@@ -331,7 +397,7 @@ Can be very cost effective for some diseases. How likely are these diseases?
 
 
 Todo:
-Fig 5: R0 vs mean incubation, with curves for diff testing params such that Re = 1
+Fig 5: R0 vs mean incubation, with curves for diff testing params such that Re = 1. Dots for various diseases
 
 
 Todo: describe usefulness even when Re from testing > 1
