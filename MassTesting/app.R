@@ -70,19 +70,16 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens",
            plotOutput("Infectiousness", height="130px"),
            sliderInput("relativeDeclineSlope","Relative Slope of Viral Decline:", min = 0.1,max = 3.0,value = 1.0),
            sliderInput("maxDaysAfterPeak","Maximum Number of days after peak \n viral load that infection ends:", min = 0,max = 20,value = 30),
+           p("The expected daily transmissions and PCR sensitivity can be estimated using the above functions"),
+           p("By averaging over test timing offsets and test outcomes, the fraction of counterfactual transmissions occuring after a positive test can be computed for each testing strategy and viral load trajectory."),
            # todo: computation of expected transmissions after postive test
 
            # sliderInput("simPrecision","Simulation Precision:", min = 0,max = 1,value = 0.2)
            
          ),
          mainPanel(
-           p("A pathogen can be characterized by its viral load trajectory: specifically the peak viral load and the time taken to reach the peak."),
            # todo: figure of characteristic curve
-           p("The expected daily transmissions and PCR sensitivity can be estimated using the mappings in the sidebar"),
-           p("By averaging over test timing offsets and test outcomes, the fraction of counterfactual transmissions occuring after a positive test can be computed for each testing strategy."),
-           
-           
-           
+           p("The infectiousness and test sensitivity for a pathogen over the course of infection depend on the viral load trajectory. A viral load trajectory can be characterized by the peak viral load and the time taken to reach the peak."),
            plotOutput("Trajectories", height="500px")
            #Todo: Add figures for fraction of transmissions occuring after positive test for each trajectory
            
