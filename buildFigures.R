@@ -78,10 +78,10 @@ plotTrajectories = function(params){
 
 plotInfectiousness = function(params){
   dt = data.table(ViralLoad = 10^seq(0, 15, length.out = 100))
-  dt[ ,ProbTransmit :=probTransmit(ViralLoad, params), by = ViralLoad ]
+  dt[ ,ExpectedTransmissions :=params["contactsPerHour"]*24*probTransmit(ViralLoad, params), by = ViralLoad ]
   
-  ggplot(dt , aes(x = ViralLoad, y = ProbTransmit)) + geom_line() + scale_x_log10(labels = trans_format("log10", math_format(10^.x))) + xlab("Viral Load [RNA copies/ml]") + ylab("Transmission\n Probability") +
-    theme(text = element_text(size=12), axis.text = element_text(size=12)) + labs(title="Probability of Transmission per Exposure")
+  ggplot(dt , aes(x = ViralLoad, y = ExpectedTransmissions)) + geom_line() + scale_x_log10(labels = trans_format("log10", math_format(10^.x))) + xlab("Viral Load [RNA copies/ml]") + ylab("Expected\nTransmissions") +
+    theme(text = element_text(size=12), axis.text = element_text(size=12)) + labs(title="Expected Transmissions per Day")
   
 }
 

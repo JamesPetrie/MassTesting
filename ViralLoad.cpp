@@ -13,7 +13,7 @@ inline double probTransmit(double viralLoad, const NumericVector params = R_NilV
 // computes probability of a positive PCR result given viral load
 // [[Rcpp::export]]
 inline double probPositive(double viralLoad,const NumericVector params = R_NilValue) {
-  if (viralLoad > 1e3) {
+  if (viralLoad > pow(10, params["minLogPCRViralLoad"])) {
     return 1;
   } else {
     return 0;
