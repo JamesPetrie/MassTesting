@@ -33,7 +33,7 @@ generateControllabilityFigure = function(testPeriods, inputParams){
       geom_line(data= dt, aes(x = DaysToPeak, y = MaxR0, colour = PeriodLabel), linewidth = 1.4) + scale_y_log10(breaks = c(1,2,3,4,6,8,10,12,15, 20), limits = c(0.98,20)) + scale_x_continuous(breaks = 0:12) + 
       guides(colour=guide_legend(title="Test period [Days]")) + xlab("Time to Peak Viral Load [Days]") + ylab("R0")+
       geom_mark_ellipse(data = pathogenDt, aes(x= DaysToPeak, y = R0, fill = Pathogen, label = Pathogen),size = 0.01 ,label.fontsize = 14, show.legend = F)+  theme(legend.position="bottom") +
-      labs(title = "Effect of Mass Testing",  subtitle = "Maximum Controllable R0 for different testing strategies")
+      labs(title = "Effect of Mass Testing",  subtitle = "Maximum controllable R0 for different testing strategies")
       #geom_ellipse(data = data.table(), aes(x0 = 5, y0 = 3, a = 1, b = 1, angle = 0), fill = "orange", alpha = 0.4)
     
     #geom_ribbon(aes(ymin = 0, ymax = MaxR0, x = TimeToPeak/24, fill = FreqLabel), alpha = 0.5)
@@ -41,17 +41,37 @@ generateControllabilityFigure = function(testPeriods, inputParams){
   return(p)
 }
 
-replacePeakTime = function(params, timeToPeak){
+replaceParams = function(params, timeToPeak,  logPeakLoad){
   newParams = copy(params)
+  newParams["logPeakLoad"] = logPeakLoad
   newParams["timeToPeak"] = timeToPeak
   newParams["timeFromPeakTo0"] = timeToPeak/params["relativeDeclineSlope"]
   return(newParams)
 }
 
+computePeakViralLoad = function(timeToPeak, targetR0,params){
+  testParams = copy(params)
+  testParams["timeToPeak"] = timeToPeak
+  testParams["timeFromPeakTo0"] = timeToPeak/params["relativeDeclineSlope"]
+  
+  cutoffLoad = bisect(a = 0, b = 20, maxiter = 15, fun = function(logPeakLoad){
+    testParams["logPeakLoad"] = logPeakLoad
+    
+    
+    R0 = sumTransmissions(0,timeToPeak + testParams["timeFromPeakTo0"], testParams)
+    
+    return(targetR0 - R0)
+  })$root
+  
+  return(cutoffLoad)
+  
+}
+
 plotTrajectories = function(params){
   
-  dt = data.table(expand.grid(TimeToPeak = 24*c(3,7,10), Time = 24*seq(0,16, length.out = 100))) 
-  dt[ ,ViralLoad := computeViralLoad(Time, replacePeakTime(params, TimeToPeak)), by = list(Time, TimeToPeak)]
+  dt = data.table(expand.grid(TimeToPeak = 24*c(3,7,10), Time = 24*seq(0,16, length.out = 200))) 
+  dt[, LogPeakLoad := computePeakViralLoad(TimeToPeak, targetR0 =3, params), by = TimeToPeak]
+  dt[ ,ViralLoad := computeViralLoad(Time, replaceParams(params, TimeToPeak, LogPeakLoad)), by = list(Time, TimeToPeak, LogPeakLoad)]
   
   dt[ ,DailyTransmissions :=24*params["contactsPerHour"]*probTransmit(ViralLoad, replacePeakTime(params, TimeToPeak)), by = list( ViralLoad, TimeToPeak) ]
   dt[ ,TestSensitivity :=probPositive(ViralLoad, replacePeakTime(params, TimeToPeak)), by = list( ViralLoad, TimeToPeak) ]
@@ -65,15 +85,32 @@ plotTrajectories = function(params){
   
   dt[, LogViralLoad := log10(ViralLoad)]
   dtLong = melt(dt, id.vars = c("Time", "PeakLabel"), measure.vars = c("LogViralLoad", "TestSensitivity","DailyTransmissions"))
-  dtLong[, value:=value/max(value), by = variable]
+  #dtLong[, value:=value/max(value), by = variable]
   dtLong[variable == "LogViralLoad", variable := "Log Viral Load"]
   dtLong[variable == "TestSensitivity", variable := "Test Sensitivity"]
   dtLong[variable == "DailyTransmissions", variable := "Daily Transmissions"]
   
-  ggplot(dtLong, aes(x = Time/24, y = value)) + facet_wrap( ~   PeakLabel + variable , nrow = 3, dir = "v") + geom_line() + 
-    theme(axis.text.y=element_blank(),axis.ticks.y=element_blank(), axis.title.y = element_blank()) + xlab("Day Since Infection" ) +
+  #ggplot(dtLong, aes(x = Time/24, y = value)) + facet_wrap( ~   PeakLabel + variable , nrow = 3, dir = "v") + geom_line() + 
+  #theme(axis.text.y=element_blank(),axis.ticks.y=element_blank(), axis.title.y = element_blank()) + xlab("Day Since Infection" ) +
+  # scale_x_continuous(breaks = seq(0,16, by = 2))+
+  # theme(strip.background = element_blank()) + ggtitle("Example viral load trajectory, test sensitivity, expected transmissions")
+  
+  p1 = ggplot(dt, aes(x = Time/24, y = LogViralLoad)) + facet_wrap( ~   PeakLabel  , nrow = 1) + geom_line() + 
+    theme(axis.text.x=element_blank(),axis.ticks.x=element_blank(), axis.title.x = element_blank()) +# xlab("Day Since Infection" ) +
     scale_x_continuous(breaks = seq(0,16, by = 2))+
-    theme(strip.background = element_blank()) + ggtitle("Example viral load trajectory, test sensitivity, expected transmissions")
+     theme(strip.background = element_blank())  + ylab("Viral Load\n(log10 copies / ml)")
+  
+  p2 = ggplot(dt, aes(x = Time/24, y = TestSensitivity)) + facet_wrap( ~   PeakLabel  , nrow = 1) + geom_line() + 
+    theme(axis.text.x=element_blank(),axis.ticks.x=element_blank(), axis.title.x = element_blank()) +# xlab("Day Since Infection" ) +
+    scale_x_continuous(breaks = seq(0,16, by = 2))+
+    theme(strip.background = element_blank(), strip.text.x = element_blank())  + ylab("Test\nSensitivity")
+  
+  p3 = ggplot(dt, aes(x = Time/24, y = DailyTransmissions)) + facet_wrap( ~   PeakLabel  , nrow = 1) + geom_line() + 
+    xlab("Day Since Infection" ) +
+    scale_x_continuous(breaks = seq(0,16, by = 2))+
+    theme(strip.background = element_blank(), strip.text.x = element_blank()) + ylab("Expected\nTransmissions")
+
+  plot_grid(p1,p2,p3, ncol = 1,align = "v",rel_heights = c( 1,1,1.1)) 
 }
 
 plotInfectiousness = function(params){
@@ -298,9 +335,9 @@ plotImportCost = function(){
 
 
 
-inputParams = c(contactsPerHour = 13/24, testDelay = 12, fracIso = 0.9, fracTest = 0.9, precision = 0.15, maxProbTransmitPerExposure = 0.3, relativeDeclineSlope = 1.0, maxTimeAfterPeak= 24*30, logPeakLoad = 10)
+inputParams = c(contactsPerHour = 13/24, testDelay = 12, fracIso = 0.9, fracTest = 0.9, precision = 0.15, maxProbTransmitPerExposure = 0.3, relativeDeclineSlope = 1.0, maxTimeAfterPeak= 24*30, logPeakLoad = 10, initialLogLoad = -2, minLogPCRViralLoad = 3)
 
 #generateControllabilityFigure(c(24, 48), inputParams)
-#plotTrajectories(inputParams)
-plotImportCost()
+plotTrajectories(inputParams)
+#plotImportCost()
 

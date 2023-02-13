@@ -23,7 +23,7 @@ inline double probPositive(double viralLoad,const NumericVector params = R_NilVa
 // compute viral load at a given time relative to infection
 // [[Rcpp::export]]
 inline double computeViralLoad(double time, const NumericVector params) {
-  double minLogLoad = -3.0;
+  double minLogLoad = params["initialLogLoad"]; //-3.0;
   double logLoad;
   if (time < 0) {
     logLoad = minLogLoad;

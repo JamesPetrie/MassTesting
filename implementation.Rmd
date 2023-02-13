@@ -1,0 +1,18 @@
+---
+title: "Example Implementation"
+output: html_document
+---
+
+   1. Sample collection sites easily available – unstaffed, in style of self-checkout kiosks
+   2. Gargle or saliva-based sampling, with detachable QR code to get test results later
+   3. Scalable service like Uber or Amazon delivery frequently picks up samples
+   4. Highly automated labs perform PCR tests
+   5. Results posted to public database linked to QR codes (ideally within 8 hours of collection)
+   6. QR code demonstrating a recent negative test permits entry into public spaces
+   7. People who test positive are required by law to effectively isolate – free transportation, financial support, food, and accommodation provided if needed
+
+         The likelihood of success for a mass-testing intervention (as with most NPIs) increases with the ability to detect, diagnose, and adapt to failure modes.
+In this case, some important areas to monitor are isolation effectiveness, testing compliance, and the frequency of transmissions occurring before testing positive.
+         5For example, allowing entry into public spaces immediately after testing instead of waiting for test results
+         6Potentially with a cheap camera to discourage sabotage or intentionally testing incorrectly
+         7With option of testing at home for those with accessibility issues, symptoms, or who wish to pay for it

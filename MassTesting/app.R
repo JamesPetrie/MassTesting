@@ -39,7 +39,10 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens",
              p("𝛾: Fraction of (homogeneous) population testing regularly
                𝛽: Isolation effectiveness (fraction reduction in transmissions for detected positives)
                𝜎: Fraction of counterfactual transmissions occurring after receiving a positive test result
-               ")
+               "),
+             p("The expected daily transmissions and daily PCR sensitivity can be estimated for a viral load trajectory using the functions on the Viral Model page."),
+             p("By averaging over test timing offsets and test outcomes, the fraction of counterfactual transmissions occuring after a positive test can be computed for each testing strategy and viral load trajectory."),
+             
              ),
           
           # Show a plot of the generated distribution
@@ -61,18 +64,18 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens",
        sidebarLayout(
          sidebarPanel(
 
-           sliderInput("minLogPCRViralLoad","Minimum viral load (log10 copies / ml) for PCR detection :", min = 0,max = 6,value = 3), 
+           sliderInput("minLogPCRViralLoad","Minimum viral load (log10 copies / ml) for PCR detection :", min = 0,max = 6,value = 3.0), 
            plotOutput("TestSensitivity", height="130px"),
            
            sliderInput("maxProbTransmitPerExposure","Maximum Probability of Transmission Per Exposure:", min = 0.1,max = 0.9,value = 0.3), # 0.3 would be consistent with 95% of measles household contacts infected -> 1 - 0.7^8 = 0.94
            sliderInput("contactsPerDay","Contacts per day:", min = 1,max = 50,value = 13), 
            
-           plotOutput("Infectiousness", height="130px"),
+           plotOutput("Infectiousness", height="140px"),
            sliderInput("relativeDeclineSlope","Relative Slope of Viral Decline:", min = 0.1,max = 3.0,value = 1.0),
            sliderInput("maxDaysAfterPeak","Maximum Number of days after peak \n viral load that infection ends:", min = 0,max = 20,value = 30),
-           p("The expected daily transmissions and PCR sensitivity can be estimated using the above functions"),
-           p("By averaging over test timing offsets and test outcomes, the fraction of counterfactual transmissions occuring after a positive test can be computed for each testing strategy and viral load trajectory."),
-           # todo: computation of expected transmissions after postive test
+           sliderInput("initialLogLoad","Viral load at time of infection (log10 copies / ml):", min = -4, max = 0,value = -2.0)
+           
+  # todo: computation of expected transmissions after postive test
 
            # sliderInput("simPrecision","Simulation Precision:", min = 0,max = 1,value = 0.2)
            
@@ -80,6 +83,8 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens",
          mainPanel(
            # todo: figure of characteristic curve
            p("The infectiousness and test sensitivity for a pathogen over the course of infection depend on the viral load trajectory. A viral load trajectory can be characterized by the peak viral load and the time taken to reach the peak."),
+          
+           h3("Example Viral Trajectories with R0 = 3"),
            plotOutput("Trajectories", height="500px")
            #Todo: Add figures for fraction of transmissions occuring after positive test for each trajectory
            
@@ -110,48 +115,11 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens",
       
       ),
      tabPanel(
-       "Example Implementation", 
-       p("
-        
-         There are a few modifications that could im- prove the likelihood of achieving this support: reduced cost (as previously discussed), less authoritarian-seeming rules (to be discussed shortly) and increasing the pleasantness of the testing experience. 
-To improve the testing experience, gargle [190, 191] or saliva tests could be used instead of nasal swabs 4 and time spent waiting at or traveling to testing sites could be reduced
-
-         A more difficult part of the design is deciding on tradeoffs between robustness to non- compliance and authoritarian capabilities (or the perception of them). It is much easier to enforce participation for things that the public believes are necessary and important. 
-In a mass testing deployment, there are two critical steps that depend on the population: 1) frequent testing and 2) effective isolation if positive. 
-The honor system may be too optimistic, but both steps have not- too-excessive methods of enforcement. Frequent testing could be encouraged by requiring proof of a recent negative test to enter public spaces. 
-Isolation at home can be subject to random check-ins with fines to discourage non-compliance.
-
+       "Example Implementation",
       
-        It seems like nasal and gargle tests have comparable sensitivity for COVID-19 [191]. Even if more pleasant testing was 10-20% less sensitive, this could be still be worthwhile if it improves public support.
-         
-         outside of a few countries . However, support for a mass-testing approach may be greater when faced with a novel deadly pandemic. 
-There are a few modifications that could im- prove the likelihood of achieving this support: reduced cost (as previously discussed), less authoritarian-seeming rules (to be discussed shortly) and increasing the pleasantness of the testing experience. 
-To improve the testing experience, gargle [190, 191] or saliva tests could be used instead of nasal swabs 4 and time spent waiting at or traveling to testing sites could be reduced.
-         
-         Another area to be careful about is the validity of test results – whether tests are being taken properly and by the right people. For example, self-serving people who suspect they could be infected have an incentive to not test properly. 
-A robust system will preferably have the ability to detect this failure mode and adjust if it became a significant problem. 
-For this reason, designs where the sample collection process can be observed are prefer- able. 
-Having testing records securely stored and associated with people’s identity makes understanding the disease easier for public health departments and researchers. 
-However, in some countries requiring this may decrease public support and disincentivize participa- tion among some populations (undocumented immigrants, libertarians, etc.). 
-A potential solution is to offer anonymous testing but heavily incentivize5 a version that associates test results with a person’s health record.
-         Based on these considerations, the following is a potential implementation:
-         1. Sample collection sites easily available – unstaffed, in style of self-checkout kiosks6
-         2. Gargle or saliva-based sampling, with detachable QR code to get test results later
-         3. Scalable service like Uber or Amazon delivery frequently picks up samples7
-         4. Highly automated8 labs perform PCR tests
-         5. Results posted to public database linked to QR codes (ideally within 8 hours of collection)
-         6. QR code demonstrating a recent negative test permits entry into public spaces
-         7. Peoplewhotestpositivearerequiredbylawtoeffectivelyisolate–freetransportation, financial support, food, and accommodation provided if needed
-         The likelihood of success for a mass-testing intervention (as with most NPIs) increases with the ability to detect, diagnose, and adapt to failure modes. 
-In this case, some impor- tant areas to monitor are isolation effectiveness, testing compliance, and the frequency of transmissions occurring before testing positive. This proposal is based on several partially
-         5For example, allowing entry into public spaces immediately after testing instead of waiting for test results
-         6Potentially with a cheap camera to discourage sabotage or intentionally testing incorrectly
-         7With option of testing at home for those with accessibility issues, symptoms, or who wish to pay for it
-         8Potentially more innovation needed to make this scalable and cheap 134
-         
-         validated assumptions, which ideally can be strengthened with further analysis, numerical modeling, wargaming [192], and real-world experiments. 
-         While preliminary, it offers some optimism that innovation can enable an acceptable compromise between civil liberties and robust disease control."
-         )
+         includeMarkdown("~/MassTesting/implementation.Rmd")
+ 
+  
        
      ),
      
@@ -226,10 +194,10 @@ policy (as of July 2022). The independent effect of mass testing is difficult to
               
               ),
      tabPanel("Policy Proposal",
-              h3("1) Build enough PCR equipment in advance to be able to test every person every day during a pandemic"),
+              h3("1 Build enough PCR equipment in advance to be able to test every person every day during a pandemic"),
               p(""),
-              h3("2) Incorporate mass testing into national pandemic response plans"),
-              h3("3) Regularly perform simulation excercises to test system readiness")
+              h3("2 Incorporate mass testing into national pandemic response plans"),
+              h3("3 Regularly perform simulation excercises to test system readiness")
               )
      
      # tabPanel(
@@ -252,13 +220,15 @@ policy (as of July 2022). The independent effect of mass testing is difficult to
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
-   
+  #output$exampleImplementation <- 
+  
    output$controlRegion <- renderPlot({
      
      #input$contactsPerDay
      inputParams = c(contactsPerHour = input$contactsPerDay/24, testDelay = input$testDelay, fracIso = input$fracIso, fracTest = input$fracTest, 
                      precision = 0.2, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure,
-                     relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, maskEffect = input$maskEffect, minLogPCRViralLoad = input$minLogPCRViralLoad)
+                     relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, 
+                     maskEffect = input$maskEffect, minLogPCRViralLoad = input$minLogPCRViralLoad, initialLogLoad = input$initialLogLoad)
      
      generateControllabilityFigure(24*as.numeric(input$testPeriods), inputParams)
      
@@ -269,7 +239,9 @@ server <- function(input, output) {
      #reactive({
        #req(getIncperMedianlogContour()) # can't plot it until these values have been calculated
         
-     inputParams = c( logPeakLoad = 10, contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, minLogPCRViralLoad = input$minLogPCRViralLoad)
+     inputParams = c( logPeakLoad = 10, contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, 
+                      relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, 
+                      minLogPCRViralLoad = input$minLogPCRViralLoad, initialLogLoad = input$initialLogLoad, precision = 0.15)
      
       plotTrajectories(inputParams) 
        
@@ -277,7 +249,8 @@ server <- function(input, output) {
    })
    
    output$Infectiousness <- renderPlot({
-     inputParams = c(contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak)
+     inputParams = c(contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, 
+                     relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak)
      plotInfectiousness(inputParams) 
    })
    output$TestSensitivity <- renderPlot({
@@ -289,6 +262,8 @@ server <- function(input, output) {
      inputParams = c(variableTestCost = input$variableTestCost, isolationCost = input$isolationCost, fixedAnnualizedDailyTestCost = input$fixedAnnualizedDailyTestCost)
      plotPrevalenceCost(as.numeric(input$testPeriods), inputParams) 
    })   
+   
+
 }
 
 # Run the application 
