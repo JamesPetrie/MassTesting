@@ -6,9 +6,12 @@ using namespace Rcpp;
 
 // done - step 1: run model from R, plot cases per day
 // done - step 2: add risk of transmission based on viral load
-// step 3: verify contact tracing working
-// step 4: add frequent testing with parameter for frequency
-// step 5: add parameters for success rate of various steps
+// done - step 3: verify contact tracing working
+// done - step 4: make hourly instead of daily
+// step 5: add frequent testing with parameter for frequency
+// step 6: add parameters for success rate of various steps
+// step 7: change strategy based on time and case count
+// step 8: return number of undetected infectious days, tests per person, number quarantined, number isolated
 
 
 
@@ -111,34 +114,35 @@ double fracAfterPositive(const NumericVector params){
 // v2: list of infected contacts (implicitly keep track of uninfected contacts based on SAR)  
 // uses value of INT_MAX to indicate state isn't reached 
 struct Case {   
-  int dayInfected = INT_MAX;
-  int dayInfectionDetected = INT_MAX;
-  int dayInfectious = INT_MAX;
-  int dayNotInfectious = INT_MAX; 
-  int daySymptoms = INT_MAX;
-  int dayTraced = INT_MAX;
+  int hourInfected = INT_MAX;
+  int hourInfectionDetected = INT_MAX;
+  int hourInfectious = INT_MAX;
+  int hourNotInfectious = INT_MAX; 
+  int hourSymptoms = INT_MAX;
+  int hourTraced = INT_MAX;
   
-  Case(int infectedDay, int dayInfectorDetected, const NumericVector params): dayInfected(infectedDay){ 
-    dayInfectious = dayInfected ;
-    dayNotInfectious = dayInfected + (params["timeToPeak"] + params["timeFromPeakTo0"])/24;
+  Case(int infectedHour, int hourInfectorDetected, const NumericVector params): hourInfected(infectedHour){ 
+    hourInfectious = hourInfected ;
+    hourNotInfectious = hourInfected + params["timeToPeak"] + params["timeFromPeakTo0"];
     
 
-    daySymptoms = dayInfected + (params["timeToPeak"] + params["timeFromPeakToSymptoms"])/24;
+    hourSymptoms = hourInfected + params["timeToPeak"] + params["timeFromPeakToSymptoms"];
+    
     if( runif(1)[0] < params["ProbDetectSymptoms"]){
-      double viralLoad = computeViralLoad(24.0*(daySymptoms - dayInfected), params);
+      double viralLoad = computeViralLoad(hourSymptoms - hourInfected, params);
       double probPos = probPositive(viralLoad, params);
       if( runif(1)[0] < probPos){
-        dayInfectionDetected = daySymptoms + params["TestDelay"];
+        hourInfectionDetected = hourSymptoms + params["testDelay"];
       }
     }
     
     // contact tracing
-    if(dayInfectorDetected != INT_MAX && (runif(1)[0] < params["ProbTracedGivenInfectorDetected"])){
-      dayTraced = std::max(dayInfectorDetected,dayInfected) + params["ContactTracingDelay"];
+    if(hourInfectorDetected != INT_MAX && (runif(1)[0] < params["ProbTracedGivenInfectorDetected"])){
+      hourTraced = std::max(hourInfectorDetected,hourInfected) + params["ContactTracingDelay"];
       // compute day of symptoms relative to peak viral load
       // sample whether symptoms noticed and test requested
       // compute day of receiving positive resul    
-      dayInfectionDetected = std::min(dayInfectionDetected, (int)(dayTraced + params["TestDelay"]));
+      hourInfectionDetected = std::min(hourInfectionDetected, (int)(hourTraced + params["testDelay"]));
 
     }
     
@@ -168,14 +172,14 @@ Rcpp::DataFrame branchingModel(int endDay, int popSize, const NumericVector para
   }
   
   // iterate over number of days. For each day generate new cases
-  for(int day = 0;day<endDay;day++){
+  for(int hour = 0;hour<endDay*24;hour++){
     size_t size = cases.size();
     for (size_t i = 0; i < size; ++i){
       // check if they are infectious
-      if( day < cases[i].dayNotInfectious){
-        double viralLoad = computeViralLoad(24.0*(day - cases[i].dayInfected), params);
-        double transmitRate = (double)(numSusceptible)/popSize*24.0 * params["contactsPerHour"] * probTransmit(viralLoad, params);
-        if(day >= cases[i].dayInfectionDetected){
+      if( hour < cases[i].hourNotInfectious){
+        double viralLoad = computeViralLoad(hour - cases[i].hourInfected, params);
+        double transmitRate = (double)(numSusceptible)/popSize * params["contactsPerHour"] * probTransmit(viralLoad, params);
+        if(hour >= cases[i].hourInfectionDetected){
           // reduce transmissions from detected cases
           transmitRate *= params["RelativeTransmissionRisk_Detected"]; 
         }
@@ -184,7 +188,7 @@ Rcpp::DataFrame branchingModel(int endDay, int popSize, const NumericVector para
         
         if(numTransmissions > 0){
           for(int j = 0; j < numTransmissions; j++){
-            Case newCase = Case(day, cases[i].dayInfectionDetected, params);
+            Case newCase = Case(hour, cases[i].hourInfectionDetected, params);
             cases.push_back(newCase);// for each transmission, create new case and add to end of vector
             numSusceptible --;
           }
@@ -196,16 +200,16 @@ Rcpp::DataFrame branchingModel(int endDay, int popSize, const NumericVector para
   }
   
   size_t numCases = cases.size();
-  std::vector<int> infectedDays(numCases); 
-  std::vector<int> detectedDays(numCases); 
+  std::vector<int> infectedHours(numCases); 
+  std::vector<int> detectedHours(numCases); 
   
   for(int i =0; i< numCases; i++){
-    infectedDays[i] = cases[i].dayInfected;
-    detectedDays[i] = cases[i].dayInfectionDetected;
+    infectedHours[i] = cases[i].hourInfected;
+    detectedHours[i] = cases[i].hourInfectionDetected;
   }
   
   // add all case data to caseLog dataframe
-  Rcpp::DataFrame df = DataFrame::create( _["InfectedDay"] = infectedDays, _["DetectedDay"] = detectedDays);
+  Rcpp::DataFrame df = DataFrame::create( _["InfectedHour"] = infectedHours, _["DetectedHour"] = detectedHours);
   
   
   return(df);

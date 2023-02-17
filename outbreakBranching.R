@@ -8,11 +8,10 @@ Rcpp::sourceCpp("~/MassTesting/viralLoad.cpp")
 
 
 params = c(
-           ProbDetectSymptoms = 0.95,
-           ProbTracedGivenInfectorDetected = 0.95,
+           ProbDetectSymptoms = 0.6,
+           ProbTracedGivenInfectorDetected = 0.6,
            RelativeTransmissionRisk_Detected = 0.1,
-           ContactTracingDelay = 1,
-           TestDelay = 1,
+           ContactTracingDelay = 24,
            
            
            # viral load params
@@ -31,7 +30,7 @@ params = c(
            minLogPCRViralLoad = 3)
 
 
-caseData = data.table(branchingModel(endDay = 60, popSize = 1e4, params)) 
+caseData = data.table(branchingModel(endDay = 60, popSize = 2000, params)) 
 
-ggplot(caseData[DetectedDay < 1000], aes(x = DetectedDay - InfectedDay)) + geom_histogram()
-ggplot(caseData, aes(x = InfectedDay)) + geom_histogram()
+ggplot(caseData[DetectedHour < 1000*24], aes(x = DetectedHour - InfectedHour)) + geom_histogram()
+ggplot(caseData, aes(x = InfectedHour)) + geom_histogram()
