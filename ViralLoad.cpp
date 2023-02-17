@@ -164,7 +164,7 @@ struct Case {
     
     
  
-    // if no infection detected yet
+    // if no infection detected yet, check for test results
     if(hourInfectionDetected > hour){
       if(!testResults.empty() && testResults.front().hourReady <= hour){
         std::cout << testResults.front().result;
@@ -192,20 +192,14 @@ struct Case {
       if(hour - hourLastTested > testPeriod ){
         getTested(hour, params);
       }
-      // check for symptoms
-      // check for quarantine (from tracing)
+      // todo: check for symptoms
+      // todo: check for quarantine (from tracing)
     }else if(state == QUARANTINE){
       // check if need to test again (at potentially different frequency)
+      // check if should move back into NORMAL state 
     }
-    
-    // check if queued test result ready (pending tests are sorted by time available and have a result)
-    // if a positive result: 
-    //  move to isolation state with probability _
-    //  notify contacts with probability _
-    
-    // 
-    
-
+  
+    // check for onward transmissions
     if( hour > hourNotInfectious){ 
       return(0);
     }else{
