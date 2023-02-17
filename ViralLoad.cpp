@@ -2,6 +2,7 @@
 #include <math.h>
 using namespace Rcpp;
 #include <random>
+#include <queue> 
 
 
 // done - step 1: run model from R, plot cases per day
@@ -13,8 +14,6 @@ using namespace Rcpp;
 // step 7: change strategy based on time and case count
 // step 8: return number of undetected infectious days, tests per person, number quarantined, number isolated
 // optional: make it faster?
-
-
 
 
 
@@ -110,9 +109,19 @@ double fracAfterPositive(const NumericVector params){
 
 
 
+enum State {NORMAL, QUARANTINE, ISOLATION};
+
+struct TestResult{
+  int hourReady;
+  bool result;
+  TestResult(int hourReady, bool result): hourReady(hourReady), result(result){
+    
+  }
+};
+
 // object storing info for a person. Contains:
 // day of infection
-// v2: list of infected contacts (implicitly keep track of uninfected contacts based on SAR)  
+// list of infected contacts (implicitly keep track of uninfected contacts based on SAR)  
 // uses value of INT_MAX to indicate state isn't reached 
 struct Case {   
   int hourInfected = INT_MAX;
@@ -121,34 +130,48 @@ struct Case {
   int hourNotInfectious = INT_MAX; 
   int hourSymptoms = INT_MAX;
   int hourTraced = INT_MAX;
+  int hourLastTested = INT_MIN;
   std::vector<Case*> contacts;
+  std::queue<TestResult> testResults;
+  State state = NORMAL;
   
-  Case(int infectedHour, const NumericVector params): hourInfected(infectedHour){ 
+  Case(int infectedHour, int testPeriod, const NumericVector params): hourInfected(infectedHour){ 
     hourInfectious = hourInfected ;
     hourNotInfectious = hourInfected + params["timeToPeak"] + params["timeFromPeakTo0"];
-    
-
-    hourSymptoms = hourInfected + params["timeToPeak"] + params["timeFromPeakToSymptoms"];
-    
     if( runif(1)[0] < params["ProbDetectSymptoms"]){
-      double viralLoad = computeViralLoad(hourSymptoms - hourInfected, params);
-      double probPos = probPositive(viralLoad, params);
-      if( runif(1)[0] < probPos){
-        hourInfectionDetected = hourSymptoms + params["testDelay"];
-      }
+      hourSymptoms = hourInfected + params["timeToPeak"] + params["timeFromPeakToSymptoms"];
     }
+    hourLastTested = infectedHour - (int)(testPeriod*runif(1)[0]); //todo: fix test timing offset (problems with changing test period causing distribution to not be uniform)
   }
   
+  void getTested(int hour,const NumericVector params){
+    double viralLoad = computeViralLoad(hour - hourInfected, params);
+    double probPos = probPositive(viralLoad, params);
+    bool result;
+    if( runif(1)[0] < probPos){
+      result = TRUE;
+    }else{
+      result = FALSE;
+    }
+    TestResult testResult = TestResult(hour + params["testDelay"], result);
+    testResults.push(testResult);
+    hourLastTested = hour;
+  }
 
-
+  // todo: create tests queue
+  // create state enum
   int update(int hour, int testPeriod ,const NumericVector params ){
+    
+    
  
     // if no infection detected yet
     if(hourInfectionDetected > hour){
-      if(tests.size() > 0 and tests.peek().timeReady == hour){
-        test = tests.pop();
+      if(!testResults.empty() && testResults.front().hourReady <= hour){
+        std::cout << testResults.front().result;
+        TestResult testResult = testResults.front();
+        testResults.pop();
         // if positive test result returned, move into isolation and notify contacts
-        if(test.result == TRUE){
+        if(testResult.result == TRUE){
           state = ISOLATION;
           hourInfectionDetected = hour;
           //notify contacts
@@ -166,6 +189,9 @@ struct Case {
     
     if(state == NORMAL){
       // check if need to test again
+      if(hour - hourLastTested > testPeriod ){
+        getTested(hour, params);
+      }
       // check for symptoms
       // check for quarantine (from tracing)
     }else if(state == QUARANTINE){
@@ -212,14 +238,12 @@ struct Case {
 // [[Rcpp::export]]
 Rcpp::DataFrame branchingModel(int endDay, int maxSize, const NumericVector params){
   std::vector<Case> cases; 
-  int testPeriod = 48;
+  int testPeriod = params["testPeriod"];
   
-  int numSusceptible = popSize;
-  // add 10 initial cases
+  // add 1 initial cases
   for(int i =0;i<1;i++){
-    Case initialCase = Case(0,  params);
+    Case initialCase = Case(0, testPeriod,  params);
     cases.push_back(initialCase);
-    numSusceptible --;
   }
   
   // iterate over number of days. For each day generate new cases
@@ -231,10 +255,9 @@ Rcpp::DataFrame branchingModel(int endDay, int maxSize, const NumericVector para
 
       if(numTransmissions > 0){
         for(int j = 0; j < numTransmissions; j++){
-          Case newCase = Case(hour, params);
+          Case newCase = Case(hour, params["testPeriod"], params);
           cases.push_back(newCase);// for each transmission, create new case and add to end of vector
           cases[i].contacts.push_back(&newCase);
-          numSusceptible --;
         }
       }
 
@@ -242,7 +265,9 @@ Rcpp::DataFrame branchingModel(int endDay, int maxSize, const NumericVector para
     if(cases.size() > maxSize){
       break;
     }
+
   }
+  
   
   size_t numCases = cases.size();
   std::vector<int> infectedHours(numCases); 
