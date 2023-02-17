@@ -3,22 +3,35 @@ require(data.table)
 require(ggplot2)
 require(Rcpp)
 
+Rcpp::sourceCpp("~/MassTesting/viralLoad.cpp")
 
-Rcpp::sourceCpp("~/MassTesting/outbreakBranching.cpp")
 
 
 params = c(
-           ProbDetectSymptoms = 0.15,
-           ProbTracedGivenInfectorDetected = 0.5,
+           ProbDetectSymptoms = 0.95,
+           ProbTracedGivenInfectorDetected = 0.95,
+           RelativeTransmissionRisk_Detected = 0.1,
+           ContactTracingDelay = 1,
+           TestDelay = 1,
            
-           DailyTransmissionRate = 0.5,
-           TimeToInfectiousRate = 0.4,
-           RecoveryRate = 0.2,
            
-           RelativeTransmissionRisk_Detected = 0.2,
-           
-           InfectionDetectionDelay = 2,
-           ContactTracingDelay = 2,
-)
+           # viral load params
+           contactsPerHour = 13/24, 
+           testDelay = 12, 
+           fracIso = 0.9, 
+           fracTest = 0.9, 
+           maxProbTransmitPerExposure = 0.3, 
+           relativeDeclineSlope = 1.0, 
+           maxTimeAfterPeak= 24*30, 
+           logPeakLoad = 8, 
+           timeToPeak = 24*6,
+           timeFromPeakToSymptoms = 0,
+           timeFromPeakTo0 = 24*6,
+           initialLogLoad = -2, 
+           minLogPCRViralLoad = 3)
 
-caseData = data.table(branchingModel(endDay = 30, popSize = 1e5, params)) 
+
+caseData = data.table(branchingModel(endDay = 60, popSize = 1e4, params)) 
+
+ggplot(caseData[DetectedDay < 1000], aes(x = DetectedDay - InfectedDay)) + geom_histogram()
+ggplot(caseData, aes(x = InfectedDay)) + geom_histogram()
