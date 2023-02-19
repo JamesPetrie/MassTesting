@@ -3,6 +3,7 @@
 using namespace Rcpp;
 #include <random>
 #include <queue> 
+#include <memory>
 
 
 // done - step 1: run model from R, plot cases per day
@@ -83,12 +84,11 @@ double fracAfterPositive(const NumericVector params){
   
   if(testPeriod <= 0) return(-1.0);
     
-// todo: fix so doesn't use same point twice (0 and testPeriod)
   double transmissionsAfter = 0.0;
-  int numOffsets = 5 + 20*params["precision"];
+  int numOffsets = 6 + 20*params["precision"];
   
   for(int i=0;i<numOffsets;i++){
-    double offset = ((double)i)/numOffsets*params["testPeriod"];
+    double offset = ((double)i)/(numOffsets+1)*params["testPeriod"];
     double remainingProb = 1.0;
     double testTime = offset;
     while(testTime <= stopTime ){
@@ -144,6 +144,10 @@ struct Case {
     hourLastTested = infectedHour - (int)(testPeriod*runif(1)[0]); //todo: fix test timing offset (problems with changing test period causing distribution to not be uniform)
   }
   
+  void addContact(Case* contact){
+    contacts.push_back(contact);
+  }
+  
   void getTested(int hour,const NumericVector params){
     double viralLoad = computeViralLoad(hour - hourInfected, params);
     double probPos = probPositive(viralLoad, params);
@@ -157,6 +161,10 @@ struct Case {
     testResults.push(testResult);
     hourLastTested = hour;
   }
+  
+  void getTraced(int hour, const NumericVector params ){
+    hourTraced = hour + params["ContactTracingDelay"];
+  }
 
   // todo: create tests queue
   // create state enum
@@ -167,7 +175,7 @@ struct Case {
     // if no infection detected yet, check for test results
     if(hourInfectionDetected > hour){
       if(!testResults.empty() && testResults.front().hourReady <= hour){
-        std::cout << testResults.front().result;
+        //std::cout << testResults.front().result;
         TestResult testResult = testResults.front();
         testResults.pop();
         // if positive test result returned, move into isolation and notify contacts
@@ -175,10 +183,11 @@ struct Case {
           state = ISOLATION;
           hourInfectionDetected = hour;
           //notify contacts
+          //std::cout << contacts.size() << " ";
           for(auto it = contacts.begin(); it != contacts.end(); ++it){
             Case* contact = *it;
-            if (runif(1)[0] < params["ProbTracedGivenInfectorDetected"]){
-              contact->hourTraced = hourInfectionDetected + params["ContactTracingDelay"];
+            if (params["ProbTracedGivenInfectorDetected"] > runif(1)[0]){ // < params["ProbTracedGivenInfectorDetected"]){
+              contact->getTraced(hour, params);
             }
           }
           
@@ -192,11 +201,25 @@ struct Case {
       if(hour - hourLastTested > testPeriod ){
         getTested(hour, params);
       }
+      
+      if(hour == hourTraced){
+        state = QUARANTINE;
+        getTested(hour, params);
+      }
+      
+      if(hour == hourSymptoms){
+        getTested(hour, params);
+      }
       // todo: check for symptoms
       // todo: check for quarantine (from tracing)
     }else if(state == QUARANTINE){
       // check if need to test again (at potentially different frequency)
-      // check if should move back into NORMAL state 
+      // todo: make parameter
+      if(hour - hourLastTested > 24 ){
+        getTested(hour, params);
+      }
+      // todo: check if should move back into NORMAL state 
+      
     }
   
     // check for onward transmissions
@@ -248,10 +271,11 @@ Rcpp::DataFrame branchingModel(int endDay, int maxSize, const NumericVector para
       int numTransmissions = cases[i].update(hour, testPeriod, params);
 
       if(numTransmissions > 0){
+        //std::cout << "Case:" << i << ", num transmissions: " << numTransmissions << ", hour = " <<hour;
         for(int j = 0; j < numTransmissions; j++){
           Case newCase = Case(hour, params["testPeriod"], params);
           cases.push_back(newCase);// for each transmission, create new case and add to end of vector
-          cases[i].contacts.push_back(&newCase);
+          cases[i].addContact(&cases.back());
         }
       }
 
@@ -266,14 +290,16 @@ Rcpp::DataFrame branchingModel(int endDay, int maxSize, const NumericVector para
   size_t numCases = cases.size();
   std::vector<int> infectedHours(numCases); 
   std::vector<int> detectedHours(numCases); 
+  std::vector<int> tracedHours(numCases); 
   
   for(int i =0; i< numCases; i++){
     infectedHours[i] = cases[i].hourInfected;
     detectedHours[i] = cases[i].hourInfectionDetected;
+    tracedHours[i] = cases[i].hourTraced;
   }
   
   // add all case data to caseLog dataframe
-  Rcpp::DataFrame df = DataFrame::create( _["InfectedHour"] = infectedHours, _["DetectedHour"] = detectedHours);
+  Rcpp::DataFrame df = DataFrame::create( _["InfectedHour"] = infectedHours, _["DetectedHour"] = detectedHours, _["TracedHour"] = tracedHours);
   
   
   return(df);
