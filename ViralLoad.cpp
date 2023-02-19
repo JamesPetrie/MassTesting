@@ -134,6 +134,7 @@ struct Case {
   std::vector<Case*> contacts;
   std::queue<TestResult> testResults;
   State state = NORMAL;
+  bool adheresToTesting;
   
   Case(int infectedHour, int testPeriod, const NumericVector params): hourInfected(infectedHour){ 
     hourInfectious = hourInfected ;
@@ -141,6 +142,12 @@ struct Case {
     if( runif(1)[0] < params["ProbDetectSymptoms"]){
       hourSymptoms = hourInfected + params["timeToPeak"] + params["timeFromPeakToSymptoms"];
     }
+    if( runif(1)[0] < params["fracTest"]){
+      adheresToTesting = TRUE;
+    }else{
+      adheresToTesting = FALSE;
+    }
+    
     hourLastTested = infectedHour - (int)(testPeriod*runif(1)[0]); //todo: fix test timing offset (problems with changing test period causing distribution to not be uniform)
   }
   
@@ -149,6 +156,8 @@ struct Case {
   }
   
   void getTested(int hour,const NumericVector params){
+    if(adheresToTesting == FALSE) return;
+    
     double viralLoad = computeViralLoad(hour - hourInfected, params);
     double probPos = probPositive(viralLoad, params);
     bool result;
@@ -231,9 +240,9 @@ struct Case {
       if(hour >= hourInfectionDetected){
         // modify transmit rate based on state
         if(state == QUARANTINE){
-          transmitRate *= params["RelativeTransmissionRisk_Detected"];
+          transmitRate *= (1 - params["fracQuar"]);
         }else if(state == ISOLATION){
-          transmitRate *= params["RelativeTransmissionRisk_Detected"];
+          transmitRate *= (1 - params["fracIso"]);
         }
       }
       
@@ -255,7 +264,7 @@ struct Case {
 // [[Rcpp::export]]
 Rcpp::DataFrame branchingModel(int endDay, int maxSize, const NumericVector params){
   std::vector<Case> cases; 
-  int testPeriod = params["testPeriod"];
+  int testPeriod = params["normalTestPeriod"];
   
   // add 1 initial cases
   for(int i =0;i<1;i++){
@@ -265,6 +274,20 @@ Rcpp::DataFrame branchingModel(int endDay, int maxSize, const NumericVector para
   
   // iterate over number of days. For each day generate new cases
   for(int hour = 0;hour<endDay*24;hour++){
+    
+    if(hour % 24 == 0){
+      size_t size = cases.size();
+      bool outbreak = FALSE; 
+      for (size_t i = 0; i < size; ++i){
+        if(cases[i].hourInfectionDetected - hour < 7*24){
+          outbreak = TRUE;
+          break;
+        }
+      }
+      if(outbreak) testPeriod = params["outbreakTestPeriod"];
+      else testPeriod = params["normalTestPeriod"];
+    }
+    
     size_t size = cases.size();
     for (size_t i = 0; i < size; ++i){
       
@@ -273,7 +296,7 @@ Rcpp::DataFrame branchingModel(int endDay, int maxSize, const NumericVector para
       if(numTransmissions > 0){
         //std::cout << "Case:" << i << ", num transmissions: " << numTransmissions << ", hour = " <<hour;
         for(int j = 0; j < numTransmissions; j++){
-          Case newCase = Case(hour, params["testPeriod"], params);
+          Case newCase = Case(hour, testPeriod, params);
           cases.push_back(newCase);// for each transmission, create new case and add to end of vector
           cases[i].addContact(&cases.back());
         }
