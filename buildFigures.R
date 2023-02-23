@@ -3,7 +3,15 @@ require(ggplot2)
 require(cowplot)
 require(scales)
 
+require(data.table)
+require(Rcpp)
+require(plyr)
+require(tidyr)
+
+
 source("~/MassTesting/ViralLoad.R")
+#source("~/MassTesting/outbreakBranching.R")
+Rcpp::sourceCpp("~/MassTesting/viralLoad.cpp")
 
 theme_set(theme(panel.grid.major.y = element_blank(),panel.grid.minor.y = element_blank()) + theme(legend.background = element_rect(fill = "white")) + theme_half_open() + background_grid()  + 
             theme(text = element_text(size=20), axis.text = element_text(size=20)))
@@ -95,17 +103,17 @@ plotTrajectories = function(params){
   # scale_x_continuous(breaks = seq(0,16, by = 2))+
   # theme(strip.background = element_blank()) + ggtitle("Example viral load trajectory, test sensitivity, expected transmissions")
   
-  p1 = ggplot(dt, aes(x = Time/24, y = LogViralLoad)) + facet_wrap( ~   PeakLabel  , nrow = 1) + geom_line() + 
+  p1 = ggplot(dt, aes(x = Time/24, y = LogViralLoad)) + facet_wrap( ~   PeakLabel  , nrow = 1) + geom_line(linewidth = 1.4) + 
     theme(axis.text.x=element_blank(),axis.ticks.x=element_blank(), axis.title.x = element_blank()) +# xlab("Day Since Infection" ) +
     scale_x_continuous(breaks = seq(0,16, by = 2))+
      theme(strip.background = element_blank())  + ylab("Viral Load\n(log10 copies / ml)")
   
-  p2 = ggplot(dt, aes(x = Time/24, y = TestSensitivity)) + facet_wrap( ~   PeakLabel  , nrow = 1) + geom_line() + 
+  p2 = ggplot(dt, aes(x = Time/24, y = TestSensitivity)) + facet_wrap( ~   PeakLabel  , nrow = 1) + geom_line(linewidth = 1.4) + 
     theme(axis.text.x=element_blank(),axis.ticks.x=element_blank(), axis.title.x = element_blank()) +# xlab("Day Since Infection" ) +
     scale_x_continuous(breaks = seq(0,16, by = 2))+
     theme(strip.background = element_blank(), strip.text.x = element_blank())  + ylab("Test\nSensitivity")
   
-  p3 = ggplot(dt, aes(x = Time/24, y = DailyTransmissions)) + facet_wrap( ~   PeakLabel  , nrow = 1) + geom_line() + 
+  p3 = ggplot(dt, aes(x = Time/24, y = DailyTransmissions)) + facet_wrap( ~   PeakLabel  , nrow = 1) + geom_line(linewidth = 1.4) + 
     xlab("Day Since Infection" ) +
     scale_x_continuous(breaks = seq(0,16, by = 2))+
     theme(strip.background = element_blank(), strip.text.x = element_blank()) + ylab("Expected\nTransmissions")
@@ -132,10 +140,36 @@ plotTestSensitivity = function(params){
 }
 
 
-plotFracTransmissionsAfterPositive = function(params){
-  #ggplot(dtTest, aes(x = 1/TestPeriod, y = FracAfterPositive, colour =  as.factor(TestDelay))) + geom_line() + 
-    #geom_point() + scale_x_continuous(expand = c(0, 0), limits = c(0,1), breaks = c(1/30, 1/7, 1/4, 1/2, 1), labels = c("1/30", "1/7", "1/4", "1/2", "1")) + 
-    #scale_y_continuous(expand = c(0, 0), limits = c(0,1)) + guides(colour=guide_legend(title="Test Delay [Days]")) + xlab("Testing Frequency [1/Days]") + ylab("Fraction Counterfactual Transmissions \n After Receiving Positive Test")+ theme(legend.position = c(0.7, 0.2)) + theme(text = element_text(size=16))
+# plot fraction transmissions after positive vs test delay for selected testing frequencies for each of the 3 viral load trajectories
+plotFracTransmissionsAfterPositive = function(testPeriods,params){
+  dt = data.table(expand.grid(TestDelay = seq(0, 72, length.out = 12), TestPeriod  = testPeriods, TimeToPeak = 24*c(3,7,10)))
+  dt[, LogPeakLoad := computePeakViralLoad(TimeToPeak, targetR0 =3, params), by = TimeToPeak]
+  
+  dt = rbindlist(llply(1:nrow(dt), function(i){
+
+    newParams = copy(params)
+    newParams["logPeakLoad"] = dt[i, LogPeakLoad]
+    newParams["timeToPeak"] = dt[i,TimeToPeak]
+    newParams["timeFromPeakTo0"] = newParams["timeToPeak"]/params["relativeDeclineSlope"]
+    newParams["testPeriod"] = dt[i,TestPeriod]
+    newParams["testDelay"] = dt[i,TestDelay]
+    
+    fracAfter = fracAfterPositive(newParams)
+    
+    
+    return(cbind(dt[i,], data.table(FracAfterPositive = fracAfter)))
+    
+  }))
+  peakNames = dt[, list(PeakLabel = paste("Days to Peak: ", TimeToPeak/24)), by = TimeToPeak]
+  setkey(peakNames, by = "TimeToPeak")
+  peakNames[, PeakLabel := factor(PeakLabel, levels = PeakLabel)]
+  dt = merge(dt, peakNames, by = "TimeToPeak")
+  p = ggplot(dt, aes(x = TestDelay, y = FracAfterPositive, colour =  as.factor(TestPeriod/24))) + geom_line(linewidth = 1.4)  + 
+    scale_y_continuous(expand = c(0, 0), limits = c(0,1.01)) + guides(colour=guide_legend(title="Test Period [Days]")) +
+    xlab("Test Delay [Hours]") + ylab("Fraction Transmissions \n After Positive Test")+ 
+    theme(legend.position = c(0.7, 0.2)) + theme(text = element_text(size=16)) + facet_wrap(~PeakLabel, nrow = 1)+
+    theme(strip.background = element_blank())+  theme(legend.position="bottom") 
+  return(p)
 }
 
 plotPrevalenceCost = function(testPeriods, params){
@@ -331,6 +365,40 @@ plotImportCost = function(){
 }
 
 
+plotOutbreaks = function(numOutbreaks = 10, endDay = 90, maxSize = 1000, params){
+    caseData = rbindlist(llply(1:numOutbreaks, function(i){
+      dt = data.table(branchingModel(endDay = endDay, maxSize = maxSize, params)) 
+      dt[,RunNumber := i]
+      return(dt)
+    }))
+    
+    
+    dt = caseData[,list(DailyInfected = .N), by = list(Day = floor(InfectedHour/24),RunNumber ) ]
+    dt = data.table(dt %>% complete(nesting(RunNumber), Day = seq(0, endDay, 1), fill = list(DailyInfected = 0)))
+    setkeyv(dt, c("Day", "RunNumber"))
+    dt[ , CumulativeInfected := cumsum(DailyInfected), by = RunNumber]
+    
+    
+    
+    
+    #print(mean(caseData[DetectedHour < 1000*24,DetectedHour - InfectedHour]))
+    #ggplot(caseData[DetectedHour < 1000*24], aes(x = DetectedHour - InfectedHour)) + geom_histogram()
+    
+    #ggplot(dt) + geom_line(aes(x = Day, y = CumulativeInfected, group = as.factor(RunNumber)), alpha = 0.4)  + geom_smooth(aes(x = Day, y = CumulativeInfected)) #+ scale_y_log10()
+    ggplot(dt) + geom_line(aes(x = Day, y = DailyInfected, group = as.factor(RunNumber)), alpha = 0.4)  + geom_smooth(aes(x = Day, y = DailyInfected))
+    
+    # days of undetected infection per outbreak
+    sumData = caseData[, sum(pmin(15*24, DetectedHour - InfectedHour, TracedHour - InfectedHour ))/24, by = RunNumber]; 
+    print(mean(sumData$V1))
+    ggplot(sumData, aes(x= V1)) + geom_histogram()
+    
+    # todo: days of elevated testing per outbreak
+    
+    # todo: cost of isolation and quarantine per outbreak
+    
+    # todo: number of infections per outbreak
+  }
+
 
 
 
@@ -338,6 +406,7 @@ plotImportCost = function(){
 inputParams = c(contactsPerHour = 13/24, testDelay = 12, fracIso = 0.9, fracTest = 0.9, precision = 0.15, maxProbTransmitPerExposure = 0.3, relativeDeclineSlope = 1.0, maxTimeAfterPeak= 24*30, logPeakLoad = 10, initialLogLoad = -2, minLogPCRViralLoad = 3)
 
 #generateControllabilityFigure(c(24, 48), inputParams)
-plotTrajectories(inputParams)
+#plotTrajectories(inputParams)
 #plotImportCost()
 
+plotFracTransmissionsAfterPositive(c(24, 48), inputParams)

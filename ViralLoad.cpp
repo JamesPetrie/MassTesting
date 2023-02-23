@@ -131,12 +131,13 @@ struct Case {
   int hourSymptoms = INT_MAX;
   int hourTraced = INT_MAX;
   int hourLastTested = INT_MIN;
+  int infectedBy = -1;
   std::vector<Case*> contacts;
   std::queue<TestResult> testResults;
   State state = NORMAL;
   bool adheresToTesting;
   
-  Case(int infectedHour, int testPeriod, const NumericVector params): hourInfected(infectedHour){ 
+  Case(int infectedHour, int testPeriod, int infectorId, const NumericVector params): hourInfected(infectedHour), infectedBy(infectorId){ 
     hourInfectious = hourInfected ;
     hourNotInfectious = hourInfected + params["timeToPeak"] + params["timeFromPeakTo0"];
     if( runif(1)[0] < params["ProbDetectSymptoms"]){
@@ -268,7 +269,7 @@ Rcpp::DataFrame branchingModel(int endDay, int maxSize, const NumericVector para
   
   // add 1 initial cases
   for(int i =0;i<1;i++){
-    Case initialCase = Case(0, testPeriod,  params);
+    Case initialCase = Case(0, testPeriod, -1,  params);
     cases.push_back(initialCase);
   }
   
@@ -296,7 +297,7 @@ Rcpp::DataFrame branchingModel(int endDay, int maxSize, const NumericVector para
       if(numTransmissions > 0){
         //std::cout << "Case:" << i << ", num transmissions: " << numTransmissions << ", hour = " <<hour;
         for(int j = 0; j < numTransmissions; j++){
-          Case newCase = Case(hour, testPeriod, params);
+          Case newCase = Case(hour, testPeriod, i, params);
           cases.push_back(newCase);// for each transmission, create new case and add to end of vector
           cases[i].addContact(&cases.back());
         }
@@ -314,15 +315,17 @@ Rcpp::DataFrame branchingModel(int endDay, int maxSize, const NumericVector para
   std::vector<int> infectedHours(numCases); 
   std::vector<int> detectedHours(numCases); 
   std::vector<int> tracedHours(numCases); 
+  std::vector<int> infectorIds(numCases); 
   
   for(int i =0; i< numCases; i++){
     infectedHours[i] = cases[i].hourInfected;
     detectedHours[i] = cases[i].hourInfectionDetected;
     tracedHours[i] = cases[i].hourTraced;
+    infectorIds[i] = cases[i].infectedBy;
   }
   
   // add all case data to caseLog dataframe
-  Rcpp::DataFrame df = DataFrame::create( _["InfectedHour"] = infectedHours, _["DetectedHour"] = detectedHours, _["TracedHour"] = tracedHours);
+  Rcpp::DataFrame df = DataFrame::create( _["InfectedHour"] = infectedHours, _["DetectedHour"] = detectedHours, _["TracedHour"] = tracedHours, _["InfectorId"] = infectorIds);
   
   
   return(df);

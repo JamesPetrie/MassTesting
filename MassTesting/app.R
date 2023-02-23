@@ -25,46 +25,43 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens",
        # Sidebar with a slider input for number of bins 
        sidebarLayout(
           sidebarPanel(
-             sliderInput("testDelay",
-                         "Test Delay [hours]:",
-                         min = 0,
-                         max = 72,
-                         value = 24),
-             #sliderInput("contactsPerDay","Contacts Per Day:", min = 0,max = 40,value = 13),
-              sliderInput("fracTest","Fraction of population regularly testing:", min = 0,max = 0.995,value = 0.90),
-             sliderInput("fracIso","Fraction of transmissions prevented by isolation:", min = 0,max = 0.995,value = 0.90),
-             checkboxGroupInput("testPeriods", "Days Between Tests", choices = list(1, 2,3,5,7,10,30), selected= (list(1,3,7)), inline = TRUE),
-             sliderInput("maskEffect","Fraction of transmissions prevented by masks:", min = 0,max = 0.995,value = 0.0),
-             h3("Calculation details:"),
-             p("𝛾: Fraction of (homogeneous) population testing regularly
-               𝛽: Isolation effectiveness (fraction reduction in transmissions for detected positives)
-               𝜎: Fraction of counterfactual transmissions occurring after receiving a positive test result
-               "),
-             p("The expected daily transmissions and daily PCR sensitivity can be estimated for a viral load trajectory using the functions on the Viral Model page."),
-             p("By averaging over test timing offsets and test outcomes, the fraction of counterfactual transmissions occuring after a positive test can be computed for each testing strategy and viral load trajectory."),
-             
+            h3("Effectiveness Calculation:"),
+            withMathJax(p('$$R_e = R_0 \\cdot (1 - \\gamma  \\cdot \\beta \\cdot \\sigma) \\cdot (1-\\lambda)$$')),
+            
+            withMathJax(p('\\(R_e\\) is the effective reproduction number when using a mass-testing strategy. If \\(R_e < 1\\) then the number of infected cases will decrease.')),
+            
+            withMathJax(p('The graph is created by finding the largest \\(R_0\\) (modified by varying peak viral load) for each testing strategy such that \\(R_e \\leq 1\\). Pathogens below each line can be controlled by that testing strategy.')),
+                  #sliderInput("contactsPerDay","Contacts Per Day:", min = 0,max = 40,value = 13),
+            sliderInput("fracTest",withMathJax(p('\\(\\gamma\\): Fraction of (homogeneous) population testing regularly:')), min = 0,max = 0.995,value = 0.90),
+            sliderInput("fracIso",withMathJax(p('\\(\\beta\\):  Isolation effectiveness (fraction reduction in transmissions for detected positives):')), min = 0,max = 0.995,value = 0.90),
+            withMathJax(p('\\(\\sigma\\):   Fraction of counterfactual transmissions occurring after receiving a positive test result. The calculation is shown in the Model tab (depending on viral load trajectory, test frequency, and test delay)')),
+            sliderInput("testDelay", "Test Delay [hours]:",min = 0, max = 72,value = 12),
+            checkboxGroupInput("testPeriods", "Days Between Tests", choices = list(1, 2,3,5,7,10,30), selected= (list(1,3,7)), inline = TRUE),
+            sliderInput("maskEffect",withMathJax(p('\\(\\lambda\\):  Fraction of transmissions prevented by masks:')), min = 0,max = 0.995,value = 0.0),
+
+  
              ),
           
           # Show a plot of the generated distribution
           mainPanel(
+            h2("Motivation"),
+            HTML("<b>Scenario</b>: Novel airborne pandemic with no available vaccines or treatments. Global elimination unlikely so expecting imported cases<br/>"),
+            HTML("<b>Goal</b>: Reduce the number of infections while waiting for vaccines<br/>"),
+            HTML("<b>Challenge</b>: Because of the high cost of existing Non-Pharmaceutical Interventions (NPIs), many countries may be unwilling or unable to control the epidemic<br/>"),
+            HTML("<b>Proposed solution</b>: Frequent (inexpensive and convenient) saliva PCR testing for most of the population. Generous financial support for isolation of people who test positive.<br/><br/><br/>"),
              plotOutput("controlRegion", height="550px"),
-             h2("Motivation"),
-             p("Novel airborne pandemic with no available vaccines or treatments"),
-             p("Global elimination unlikely, so expecting imported cases (even with strong border controls)"),
-             p("\nGoal: reduce infections while waiting for vaccines"),
-             p("Challenge: because of the high cost of existing NPIs, many countries may be unwilling or unable to control the epidemic"),
-             p("Proposed solution: frequent saliva PCR testing for most of the population")
+
              
              #Todo: show peak image with peak viral load and time to peak, describe how figure generated
           )
        )
       ),
      tabPanel(
-       "Viral Model",
+       "Model",
        sidebarLayout(
          sidebarPanel(
 
-           sliderInput("minLogPCRViralLoad","Minimum viral load (log10 copies / ml) for PCR detection :", min = 0,max = 6,value = 3.0), 
+           sliderInput("minLogPCRViralLoad","Minimum viral load (log10 copies / ml) for PCR detection :", min = 0.0,max = 6.0,value = 3.0, step = 0.5), 
            plotOutput("TestSensitivity", height="130px"),
            
            sliderInput("maxProbTransmitPerExposure","Maximum Probability of Transmission Per Exposure:", min = 0.1,max = 0.9,value = 0.3), # 0.3 would be consistent with 95% of measles household contacts infected -> 1 - 0.7^8 = 0.94
@@ -84,9 +81,23 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens",
            # todo: figure of characteristic curve
            p("The infectiousness and test sensitivity for a pathogen over the course of infection depend on the viral load trajectory. A viral load trajectory can be characterized by the peak viral load and the time taken to reach the peak."),
           
-           h3("Example Viral Trajectories with R0 = 3"),
-           plotOutput("Trajectories", height="500px")
+           h3("Example Viral Load Trajectories with \\(R_0=3\\)"),
+           plotOutput("Trajectories", height="500px"),
+           h3("Fraction of transmissions after a positive test"),
            #Todo: Add figures for fraction of transmissions occuring after positive test for each trajectory
+           p("\\(\\sigma\\), the fraction of counterfactual transmissions occuring after receiving a positive test  can be computed for each testing strategy and viral load trajectory."),
+           plotOutput("FracAfterPositive", height="300px"),
+           h3("Calculation"),
+           p("Let \\(E[T(x)|\\pi]\\) be the expected number of transmissions on day x after infection, conditional on parameters \\(\\pi\\) describing the viral load trajectory.
+             Let \\(P(Test(x) | \\pi)\\) be the probability that a test taken on day \\(x\\) is positive, also conditional on the viral load trajectory. 
+             Define the function ProbAllNegative(x, offset, period) as the probability that all samples collected on or before day x are negative, 
+             with the time between sequential tests set by the period variable, and the timing relative to infection set by the offset variable."),
+           withMathJax(p('$$ProbAllNegative(x, offset, period) = \\prod_{k=0}^{(x-offset)/period}(1-P(Test(k*period + offset) | \\pi))$$')),
+           p('The expected fraction of transmissions after a positive test is computed by averaging over test timing offset, with offset ~ unif(0,period):'),
+           withMathJax(p('$$\\sigma(testDelay, testPeriod) = \\frac{E_{offset}[\\sum_{j=0}^{\\infty} E[T(j)|\\pi] \\cdot (1 - ProbAllNegative(j-testDelay, offset, testPeriod))]}{\\sum_{j=0}^{\\infty} E[T(j)|\\pi]}$$')),
+
+           
+           
            
          )
          
@@ -114,6 +125,19 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens",
 
       
       ),
+  tabPanel(
+    "Outbreak Response",
+    # Sidebar with a slider input for number of bins 
+    sidebarLayout(
+      sidebarPanel(
+        # 
+      ),
+      
+      mainPanel(
+  
+      )
+    )
+  ), 
      tabPanel(
        "Example Implementation",
       
@@ -129,46 +153,48 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens",
        accordion(
          id = "accordion1",
          accordionItem(
-           title = "speed for pathogens with short generation time",
+           title = "Testing and isolation adherence",
            collapsed = TRUE,
-           "- sol: reduce pcr delay time - sol: add household quarantine or some contact tracing"
+           HTML("- sol: require proof of a recent negative test for daily activities <br/>
+                - sol: generously support isolation and verify adherence <br/>
+                - response: for many spillover pathogens, R0 is initially fairly low, so even partial adherence may be enough <br/>
+                - response: for higher R0 pathogens, partially effective mass testing substitutes for more expensive social distancing<br/>")
          ),
          accordionItem(
-           title = "enforcing isolation and testing",
+           title = "speed for pathogens with short generation time",
            collapsed = TRUE,
-           "- sol: require testing for daily activities
-         - sol: validate isolation being followed, and generously support it
-           - response: for many spillover pathogens, R0 is initially fairly low, so even partial adherence may be enough
-           - response: for higher R0 pathogens, partially effective mass testing substitutes for more expensive social distancing"
-         ),
+           HTML("- sol: reduce pcr delay time <br/>
+                - sol: add household quarantine or some contact tracing")
+           ),
          accordionItem(
            title = "early pandemic time to functionality (materials, personnel, equipment, logistics)",
            collapsed = TRUE,
-           "sol: more analysis of failure modes
-         - sol: run peacetime simulation excercises"
+           HTML("sol: more analysis of failure modes<br/>
+         - sol: run peacetime simulation excercises")
          ),
          accordionItem(
            title = "accuracy of viral load/infectiosness/pcr model for novel pathogens",
            collapsed = TRUE,
-           "argument: many common
+           HTML("argument: many common<br/>
          - argument: PCR is fairly well understood -if the RNA is there at a certain concentration it can be found"
+                )
          ),
          accordionItem(
            title = "running cost too high",
            collapsed = TRUE,
-           "sol: reduce testing frequency in areas with low chance of infections
-         - sol: automate further, develop own reagents"
+           HTML("sol: reduce testing frequency in areas with low chance of infections<br/>
+         - sol: automate further, develop own reagents")
          ),
          accordionItem(
            title = "population behaviour in different pandemic scenarios",
            collapsed = TRUE,
-           "sol for seemingly low IFR: reduce cost and burden of response
-         - sol for high IFR: keep prevalence very low, have sufficient PPE"
+           HTML("sol for seemingly low IFR: reduce cost and burden of response<br/>
+         - sol for high IFR: keep prevalence very low, have sufficient PPE")
          ),
          accordionItem(
            title = "heterogeneous population behavioiur",
            collapsed = TRUE,
-           "sol: feedback mechanisms to find and respond to process failures"
+           HTML("sol: feedback mechanisms to find and respond to process failures")
          )
        )
        
@@ -246,6 +272,14 @@ server <- function(input, output) {
       plotTrajectories(inputParams) 
        
     # })
+   })
+   
+   output$FracAfterPositive <- renderPlot({
+     inputParams = c(  contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, 
+                      relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, 
+                      minLogPCRViralLoad = input$minLogPCRViralLoad, initialLogLoad = input$initialLogLoad, precision = 0.15)
+     
+     plotFracTransmissionsAfterPositive(24*as.numeric(input$testPeriods), inputParams)
    })
    
    output$Infectiousness <- renderPlot({
