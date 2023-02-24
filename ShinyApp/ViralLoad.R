@@ -4,7 +4,7 @@ require(plyr)
 
 #require(pracma)
 
-Rcpp::sourceCpp('~/MassTesting/ViralLoad.cpp')
+Rcpp::sourceCpp('ViralLoad.cpp')
 # 
 # 
 # 
