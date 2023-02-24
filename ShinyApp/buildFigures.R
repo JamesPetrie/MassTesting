@@ -221,7 +221,7 @@ plotPrevalenceCost = function(testPeriods, params){
   
   
   ggplot() +geom_line(data = dtLong, aes(x= FractionInfectedDaily, y = value, linetype = variable, group = paste(variable,PeriodDescription)),  linewidth = 2) + geom_line(data = dtLong[variable == "Total Cost"], aes(x= FractionInfectedDaily, y = value, colour = PeriodDescription), linewidth = 2) +
-    scale_x_log10() +scale_y_log10(limits = c(0.005, 0.5), n.breaks = 8) + labs(x = "Daily Fraction of Population Infected", y = "Daily Fraction of GDP") + 
+    scale_x_log10() +scale_y_log10(limits = c(0.002, 0.5), n.breaks = 8) + labs(x = "Daily Fraction of Population Infected", y = "Fraction of GDP") + 
     guides(colour = guide_legend(nrow = 2)) + theme(legend.position = c(0.1, 0.8)) +guides(colour=guide_legend(title="Test period [Days]"),linetype=guide_legend(title="Cost Type")) +
     ggtitle("Daily Testing and Isolation Cost During Outbreak")
   

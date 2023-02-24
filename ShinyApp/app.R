@@ -110,11 +110,17 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens. Made by James Pet
            sliderInput("variableTestCost","Variable Cost Per Test (USD):", min = 1,max = 100,value = 10),
            sliderInput("isolationCost","Cost of supporting case isolation:", min = 0,max = 50000,value = 5000),
           
-           sliderInput("fixedAnnualizedDailyTestCost","Annual Fixed Cost per Daily Test Capability:", min = 0.01,max = 10,value = 0.28)
-           
+           sliderInput("fixedAnnualizedDailyTestCost","Annual Fixed Cost per Daily Test Capability:", min = 0.01,max = 10,value = 0.28),
+           wellPanel(
+             helpText(   
+                         a("SalivaDirect Protocol with $1.21 per sample in reagents. ",     href="https://doi.org/10.1016/j.medj.2020.12.010", target="_blank"),
+                         HTML("Reduce cost of logistics and labour to below $1 using unstaffed booths with regular sample collection by a scalable service like Uber or Amazon delivery in combination with highly automated PCR labs.")
+             )
+           )
          ),
          mainPanel(
            plotOutput("PrevalenceCost", height="500px")
+
            # todo: add as function of import rate (with targeted strategies as an option)
            # Todo: add sources for fixed and variable costs
          )
