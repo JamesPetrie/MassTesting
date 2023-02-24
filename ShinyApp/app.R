@@ -195,7 +195,13 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens. Made by James Pet
            title = "heterogeneous population behavioiur",
            collapsed = TRUE,
            HTML("sol: feedback mechanisms to find and respond to process failures")
+         ),     
+         accordionItem(
+           title = "perverse incentives",
+           collapsed = TRUE,
+           HTML("sol: calibrate incentives to not substantially exceed perceived cost of infection and isolation")
          )
+         
        )
 
      ),
