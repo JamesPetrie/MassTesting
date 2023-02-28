@@ -205,7 +205,8 @@ struct Case {
       }
 
     }
-    
+   
+    // check whether they should get tested 
     if(state == NORMAL){
       // check if need to test again
       if(hour - hourLastTested > testPeriod ){
@@ -273,6 +274,7 @@ Rcpp::DataFrame branchingModel(int endDay, int maxSize, const NumericVector para
     cases.push_back(initialCase);
   }
   
+  int simulationEndHour = endDay*24;
   // iterate over number of days. For each day generate new cases
   for(int hour = 0;hour<endDay*24;hour++){
     
@@ -305,6 +307,7 @@ Rcpp::DataFrame branchingModel(int endDay, int maxSize, const NumericVector para
 
     }
     if(cases.size() > maxSize){
+      simulationEndHour = hour;
       break;
     }
 
@@ -316,16 +319,24 @@ Rcpp::DataFrame branchingModel(int endDay, int maxSize, const NumericVector para
   std::vector<int> detectedHours(numCases); 
   std::vector<int> tracedHours(numCases); 
   std::vector<int> infectorIds(numCases); 
+  std::vector<int> ids(numCases); 
+  std::vector<int> transmissionCounts(numCases);
+  std::vector<int> endHours(numCases);
+  
   
   for(int i =0; i< numCases; i++){
     infectedHours[i] = cases[i].hourInfected;
     detectedHours[i] = cases[i].hourInfectionDetected;
     tracedHours[i] = cases[i].hourTraced;
     infectorIds[i] = cases[i].infectedBy;
+    ids[i] = i;
+    transmissionCounts[i] = cases[i].contacts.size();
+    endHours[i] = simulationEndHour;
   }
   
   // add all case data to caseLog dataframe
-  Rcpp::DataFrame df = DataFrame::create( _["InfectedHour"] = infectedHours, _["DetectedHour"] = detectedHours, _["TracedHour"] = tracedHours, _["InfectorId"] = infectorIds);
+  Rcpp::DataFrame df = DataFrame::create( _["InfectedHour"] = infectedHours, _["DetectedHour"] = detectedHours, _["TracedHour"] = tracedHours,
+                                          _["InfectorId"] = infectorIds, _["Id"] = ids, _["NumInfected"] = transmissionCounts, _["SimulationEndHour"] = endHours);
   
   
   return(df);

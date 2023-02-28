@@ -195,10 +195,9 @@ plotPrevalenceCost = function(testPeriods, params){
     testCost = testFreq*variableTestCost
 
     
-    gdpPerCapita = 70e3 # gdp per person in USA
-    
-    dailyTestCostPerPerson = testCost*365/gdpPerCapita
-    dailyIsoCostPerPerson = dailyInfections*isoCost*365/gdpPerCapita
+     
+    dailyTestCostPerPerson = testCost
+    dailyIsoCostPerPerson = dailyInfections*isoCost
     
     dailyTotalCost = dailyTestCostPerPerson + dailyIsoCostPerPerson
     
@@ -211,6 +210,13 @@ plotPrevalenceCost = function(testPeriods, params){
 
   dt[,PeriodDescription := paste0(TestPeriod, " ($",round(AnnualizedFixedCostPerPerson, digits = 3), " per person per year fixed cost)" )]
   
+  periodNames = dt[, list(PeriodLabel = paste(TestPeriod/24)), by = TestPeriod]
+  periodNames[, TestPeriod := as.numeric(TestPeriod)]
+  setkey(periodNames, by = "TestPeriod")
+  periodNames[, PeriodLabel := factor(PeriodLabel, levels = PeriodLabel)]
+  dt = merge(dt, periodNames, by = "TestPeriod")
+  
+  
   dtLong = melt(dt, id.vars = c(
     "FractionInfectedDaily", "PeriodDescription"), measure.vars = c("TotalCost",  "IsoCost") )
   
@@ -221,9 +227,9 @@ plotPrevalenceCost = function(testPeriods, params){
   
   
   ggplot() +geom_line(data = dtLong, aes(x= FractionInfectedDaily, y = value, linetype = variable, group = paste(variable,PeriodDescription)),  linewidth = 2) + geom_line(data = dtLong[variable == "Total Cost"], aes(x= FractionInfectedDaily, y = value, colour = PeriodDescription), linewidth = 2) +
-    scale_x_log10() +scale_y_log10(limits = c(0.005, 0.5), n.breaks = 8) + labs(x = "Daily Fraction of Population Infected", y = "Daily Fraction of GDP") + 
+    scale_x_log10() +scale_y_log10(limits = c(0.05, 64), n.breaks = 8) + labs(x = "Daily Fraction of Population Infected", y = "Daily Cost per Person (USD)") + 
     guides(colour = guide_legend(nrow = 2)) + theme(legend.position = c(0.1, 0.8)) +guides(colour=guide_legend(title="Test period [Days]"),linetype=guide_legend(title="Cost Type")) +
-    ggtitle("Daily Testing and Isolation Cost During Outbreak")
+    ggtitle("Daily Testing and Isolation Cost")
   
 }
 
@@ -365,38 +371,68 @@ plotPrevalenceCost = function(testPeriods, params){
 # }
 
 
-plotOutbreaks = function(numOutbreaks = 10, endDay = 90, maxSize = 1000, params){
+plotOutbreaks = function(numOutbreaks = 10, endDay = 90, maxSize = 1000, R0, params){
+    params["logPeakLoad"] = computePeakViralLoad(params["timeToPeak"], targetR0 =R0, params)
     caseData = rbindlist(llply(1:numOutbreaks, function(i){
       dt = data.table(branchingModel(endDay = endDay, maxSize = maxSize, params)) 
       dt[,RunNumber := i]
       return(dt)
     }))
     
+    caseData[, OutbreakDetectedHour := min(DetectedHour), by = RunNumber]
+    caseData[, OutbreakSize := max(Id) +1 , by = RunNumber]
     
+    outbreakOverDt = caseData[OutbreakSize < maxSize, list(OutbreakOverHour = max(InfectedHour) + 14*24), by = RunNumber]
+    days = seq(0, endDay, 1)
+    fractionDone = sapply(days, function(day){
+      return(sum(outbreakOverDt$OutbreakOverHour <= day*24)/numOutbreaks)
+    })
+    p1 = ggplot(data.table(FractionDone = fractionDone, Day =days)) + geom_line(aes(x = Day, y = FractionDone)) + ylim(0,1)
+    
+    
+    
+
     dt = caseData[,list(DailyInfected = .N), by = list(Day = floor(InfectedHour/24),RunNumber ) ]
     dt = data.table(dt %>% complete(nesting(RunNumber), Day = seq(0, endDay, 1), fill = list(DailyInfected = 0)))
     setkeyv(dt, c("Day", "RunNumber"))
     dt[ , CumulativeInfected := cumsum(DailyInfected), by = RunNumber]
     
     
-    
+    outbreakDetectedDt = caseData[, list(OutbreakDetectedHour = min(OutbreakDetectedHour)), by = RunNumber]
     
     #print(mean(caseData[DetectedHour < 1000*24,DetectedHour - InfectedHour]))
     #ggplot(caseData[DetectedHour < 1000*24], aes(x = DetectedHour - InfectedHour)) + geom_histogram()
     
     #ggplot(dt) + geom_line(aes(x = Day, y = CumulativeInfected, group = as.factor(RunNumber)), alpha = 0.4)  + geom_smooth(aes(x = Day, y = CumulativeInfected)) #+ scale_y_log10()
-    ggplot(dt) + geom_line(aes(x = Day, y = DailyInfected, group = as.factor(RunNumber)), alpha = 0.4)  + geom_smooth(aes(x = Day, y = DailyInfected))
+    #p1 = ggplot(dt) + geom_line(aes(x = Day, y = DailyInfected, group = as.factor(RunNumber)), alpha = 0.4)  + geom_smooth(aes(x = Day, y = DailyInfected))# + geom_vline(data = outbreakDetectedDt[OutbreakDetectedHour < 24*1000], aes(xintercept = OutbreakDetectedHour/24), alpha = 0.2, colour = 'green')
     
     # days of undetected infection per outbreak
-    sumData = caseData[, sum(pmin(15*24, DetectedHour - InfectedHour, TracedHour - InfectedHour ))/24, by = RunNumber]; 
-    print(mean(sumData$V1))
-    ggplot(sumData, aes(x= V1)) + geom_histogram()
+    sumData = caseData[, list(DaysUndetected = sum(pmin(15*24, DetectedHour - InfectedHour, TracedHour - InfectedHour ))/24), by = RunNumber]; 
+    meanUndetected = mean(sumData$DaysUndetected)
+    p2 = ggplot(sumData, aes(x= DaysUndetected)) + geom_histogram() + geom_vline(xintercept = meanUndetected, colour = "purple", linewidth =2) + xlab("Number of Person-Days \n Infected but Undetected") +
+      scale_x_log10( limits = c(1,1000))
+    
+    preDetectDt = caseData[, list(NumInfectedBeforeOutbreakDetected = sum(InfectedHour <= OutbreakDetectedHour)-1), by = RunNumber]
+    p3 = ggplot(preDetectDt, aes(x= NumInfectedBeforeOutbreakDetected)) + geom_histogram() + geom_vline(xintercept = mean(preDetectDt$NumInfectedBeforeOutbreakDetected), colour = "purple", linewidth =2) +
+      xlab("Number Infected \n Before Outbreak Detected") +scale_x_continuous(breaks = seq(0,16, by = 1), limits = c(0,16))
+    
+    casesAfterOutreakDetected = caseData[InfectedHour > OutbreakDetectedHour & (InfectedHour + params["timeToPeak"] + params["timeFromPeakTo0"] <= SimulationEndHour), list(NumInfected)]
+    bootStrapRe = sapply(1:50, function(i){mean(sample(casesAfterOutreakDetected$NumInfected, size = nrow(casesAfterOutreakDetected), replace = TRUE))})
+    p4 = ggplot(data = data.table(ReEstimate = bootStrapRe), aes(x= ReEstimate)) + geom_histogram() + scale_x_continuous(limits = c(0,2)) + xlab("Bootstrapped Re Estimate \n (After Outbreak Detected)") + 
+      theme(axis.text.y=element_blank(),axis.ticks.y=element_blank()) + ylab("Fraction of Samples")
+    
     
     # todo: days of elevated testing per outbreak
     
     # todo: cost of isolation and quarantine per outbreak
     
     # todo: number of infections per outbreak
+    
+    # todo: number of infections before outbreak detected
+    # todo: remove people from Re estimate when still infected when simulation finished. Also add point
+    
+    
+    plot_grid(p1,p2,p3,p4, ncol = 2) 
   }
 
 
@@ -409,4 +445,34 @@ inputParams = c(contactsPerHour = 13/24, testDelay = 12, fracIso = 0.9, fracTest
 #plotTrajectories(inputParams)
 #plotImportCost()
 
-plotFracTransmissionsAfterPositive(c(24, 48), inputParams)
+#plotFracTransmissionsAfterPositive(c(24, 48), inputParams)
+
+
+
+params = c(
+  ProbDetectSymptoms = 0.5,
+  ProbTracedGivenInfectorDetected = 0.5,
+  RelativeTransmissionRisk_Detected = 0.05,
+  ContactTracingDelay = 12 ,
+  
+  
+  # viral load params
+  normalTestPeriod = 96 ,
+  outbreakTestPeriod = 24 ,
+  contactsPerHour = 13/24, 
+  testDelay = 8, 
+  fracIso = 0.9,
+  fracQuar = 0.9, 
+  fracTest = 0.9, 
+  maxProbTransmitPerExposure = 0.3, 
+  relativeDeclineSlope = 1.0, 
+  maxTimeAfterPeak= 24*30, 
+  logPeakLoad = 7.0, 
+  timeToPeak = 24*5,
+  timeFromPeakToSymptoms = 0,
+  timeFromPeakTo0 = 24*5,
+  initialLogLoad = -2, 
+  minLogPCRViralLoad = 3,
+  precision = 0.15)
+
+#plotOutbreaks(params=params, numOutbreaks = 300)

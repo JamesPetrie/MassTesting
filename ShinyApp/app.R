@@ -10,6 +10,7 @@
 library(shiny)
 library(shinydashboard)
 library(shinydashboardPlus)
+library(shinyWidgets)
 
 source("buildFigures.R")
 
@@ -33,7 +34,7 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens. Made by James Pet
             withMathJax(p('The graph is created by finding the largest \\(R_0\\) (modified by varying peak viral load) for each testing strategy such that \\(R_e \\leq 1\\). Pathogens below each line can be controlled by that testing strategy.')),
                   #sliderInput("contactsPerDay","Contacts Per Day:", min = 0,max = 40,value = 13),
             sliderInput("fracTest",withMathJax(p('\\(\\gamma\\): Fraction of (homogeneous) population testing regularly:')), min = 0,max = 0.995,value = 0.90),
-            sliderInput("fracIso",withMathJax(p('\\(\\beta\\):  Isolation effectiveness (fraction reduction in transmissions for detected positives):')), min = 0,max = 0.995,value = 0.90),
+            sliderInput("fracIso",withMathJax(p('\\(\\beta\\):  Isolation effectiveness (fraction reduction in transmissions for detected positives, conditional on being a person who adheres to testing):')), min = 0,max = 0.995,value = 0.90),
             withMathJax(p('\\(\\sigma\\):   Fraction of counterfactual transmissions occurring after receiving a positive test result. The calculation is shown in the Model tab (depending on viral load trajectory, test frequency, and test delay)')),
             sliderInput("testDelay", "Test Delay [hours]:",min = 0, max = 72,value = 12),
             checkboxGroupInput("testPeriods", "Days Between Tests", choices = list(1, 2,3,5,7,10,30), selected= (list(1,3,7)), inline = TRUE),
@@ -49,7 +50,7 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens. Made by James Pet
             HTML("<b>Goal</b>: Reduce the number of infections while waiting for vaccines<br/>"),
             HTML("<b>Challenge</b>: Because of the high cost of existing Non-Pharmaceutical Interventions (NPIs), many countries may be unwilling or unable to control the epidemic<br/>"),
             HTML("<b>Proposed solution</b>: Frequent (inexpensive and convenient) saliva PCR testing for most of the population. Generous financial support for isolation of people who test positive.<br/><br/><br/>"),
-             plotOutput("controlRegion", height="550px"),
+             plotOutput("controlRegion", height="550px")
 
              
              #Todo: show peak image with peak viral load and time to peak, describe how figure generated
@@ -107,7 +108,10 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens. Made by James Pet
        "Economic Cost",   
        sidebarLayout(
          sidebarPanel(
-           sliderInput("variableTestCost","Variable Cost Per Test (USD):", min = 1,max = 100,value = 10),
+           sliderTextInput("variableTestCost","Variable Cost Per Test (USD):",
+                                         choices=c(0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 64.0),
+                                         selected=2.0, grid = T),
+           #sliderInput("variableTestCost","Variable Cost Per Test (USD):", min = 1,max = 100,value = 10),
            sliderInput("isolationCost","Cost of supporting case isolation:", min = 0,max = 50000,value = 5000),
           
            sliderInput("fixedAnnualizedDailyTestCost","Annual Fixed Cost per Daily Test Capability:", min = 0.01,max = 10,value = 0.28)
@@ -130,11 +134,23 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens. Made by James Pet
     # Sidebar with a slider input for number of bins
     sidebarLayout(
       sidebarPanel(
+        sliderInput("normalTestPeriod", "Normal Test Period [days]:",min = 1, max = 30,value = 4),
+        sliderInput("outbreakTestPeriod", "Outbreak Test Period [days]:",min = 1, max = 10,value = 1),
+        sliderInput("tracingDelay", "Contact Tracing Delay [hours]:",min = 0, max = 48,value = 8),
+        
+        sliderInput("fractionTraced", "Fraction of contacts traced (for detected infections):",min = 0, max = 1,value = 0.3),
+        sliderInput("probDetectSymptoms", "Probability of detecting symptoms and getting tested:",min = 0, max = 1,value = 0.5),
+        
+        sliderInput("timeFromPeaktoSymptoms", "Time from peak viral load to symptoms [hours]:",min = -72, max = 72,value = 0),
+        sliderInput("daysToPeak", "Time from infection to peak viral load [days]:",min = 1, max = 15,value = 6),
+        sliderInput("outbreakR0", "R0:",min = 1.0, max = 16,value = 2),
+        
+        
         #
       ),
 
       mainPanel(
-
+        plotOutput("Outbreak", height="500px")
       )
     )
   ),
@@ -291,6 +307,32 @@ server <- function(input, output) {
      plotPrevalenceCost(as.numeric(input$testPeriods), inputParams) 
    })   
    
+   
+   output$Outbreak <- renderPlot({
+
+     # todo: make some input params
+     # todo: take R0 as input and compute peak viral load
+     inputParams = c(
+                     
+                     normalTestPeriod = input$normalTestPeriod*24  ,
+                     outbreakTestPeriod = input$outbreakTestPeriod*24 ,
+                     ContactTracingDelay = input$tracingDelay ,
+                     ProbTracedGivenInfectorDetected = input$fractionTraced,
+                     ProbDetectSymptoms = input$probDetectSymptoms,
+                     timeFromPeakToSymptoms = input$timeFromPeaktoSymptoms,
+                     timeToPeak = input$daysToPeak*24,
+                     maxTimeAfterPeak= 24*30, 
+                     
+                     
+                     timeFromPeakTo0 = 24*5,
+       contactsPerHour = input$contactsPerDay/24, testDelay = input$testDelay, fracIso = input$fracIso, fracTest = input$fracTest, 
+                     precision = 0.2, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure,
+                     relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, 
+                     maskEffect = input$maskEffect, minLogPCRViralLoad = input$minLogPCRViralLoad, initialLogLoad = input$initialLogLoad)
+     
+     
+     plotOutbreaks(numOutbreaks = 120, endDay = 120, maxSize = 300, R0 = input$outbreakR0, inputParams) 
+   })   
 
 }
 
