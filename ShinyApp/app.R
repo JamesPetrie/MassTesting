@@ -136,14 +136,14 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens. Made by James Pet
       sidebarPanel(
         sliderInput("normalTestPeriod", "Normal Test Period [days]:",min = 1, max = 30,value = 4),
         sliderInput("outbreakTestPeriod", "Outbreak Test Period [days]:",min = 1, max = 10,value = 1),
-        sliderInput("tracingDelay", "Contact Tracing Delay [hours]:",min = 0, max = 48,value = 8),
+        #sliderInput("tracingDelay", "Contact Tracing Delay [hours]:",min = 0, max = 48,value = 8),
         
-        sliderInput("fractionTraced", "Fraction of contacts traced (for detected infections):",min = 0, max = 1,value = 0.3),
-        sliderInput("probDetectSymptoms", "Probability of detecting symptoms and getting tested:",min = 0, max = 1,value = 0.5),
+        #sliderInput("fractionTraced", "Fraction of contacts traced (for detected infections):",min = 0, max = 1,value = 0.3),
+        #sliderInput("probDetectSymptoms", "Probability of detecting symptoms:",min = 0, max = 1,value = 0.5),
         
-        sliderInput("timeFromPeaktoSymptoms", "Time from peak viral load to symptoms [hours]:",min = -72, max = 72,value = 0),
+        #sliderInput("timeFromPeaktoSymptoms", "Time from peak viral load to symptoms [hours]:",min = -72, max = 72,value = 0),
         sliderInput("daysToPeak", "Time from infection to peak viral load [days]:",min = 1, max = 15,value = 6),
-        sliderInput("outbreakR0", "R0:",min = 1.0, max = 16,value = 2),
+        sliderInput("outbreakR0", "R0:",min = 1.0, max = 16.0,value = 2.0, round = FALSE, step = 0.25),
         
         
         #
@@ -316,22 +316,22 @@ server <- function(input, output) {
                      
                      normalTestPeriod = input$normalTestPeriod*24  ,
                      outbreakTestPeriod = input$outbreakTestPeriod*24 ,
-                     ContactTracingDelay = input$tracingDelay ,
-                     ProbTracedGivenInfectorDetected = input$fractionTraced,
-                     ProbDetectSymptoms = input$probDetectSymptoms,
-                     timeFromPeakToSymptoms = input$timeFromPeaktoSymptoms,
+                     ContactTracingDelay = 0, #input$tracingDelay ,
+                     ProbTracedGivenInfectorDetected = 0, #input$fractionTraced,
+                     ProbDetectSymptoms = 0, #input$probDetectSymptoms,
+                     timeFromPeakToSymptoms = 0,#input$timeFromPeaktoSymptoms,
                      timeToPeak = input$daysToPeak*24,
                      maxTimeAfterPeak= 24*30, 
                      
                      
                      timeFromPeakTo0 = 24*5,
-       contactsPerHour = input$contactsPerDay/24, testDelay = input$testDelay, fracIso = input$fracIso, fracTest = input$fracTest, 
+       contactsPerHour = input$contactsPerDay/24, testDelay = input$testDelay, fracIso = input$fracIso, fracQuar = input$fracIso, fracTest = input$fracTest, 
                      precision = 0.2, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure,
                      relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, 
                      maskEffect = input$maskEffect, minLogPCRViralLoad = input$minLogPCRViralLoad, initialLogLoad = input$initialLogLoad)
      
      
-     plotOutbreaks(numOutbreaks = 120, endDay = 120, maxSize = 300, R0 = input$outbreakR0, inputParams) 
+     plotOutbreaks(numOutbreaks = 1000, endDay = 120, maxSize = 100, R0 = input$outbreakR0, inputParams) 
    })   
 
 }

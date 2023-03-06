@@ -410,15 +410,15 @@ plotOutbreaks = function(numOutbreaks = 10, endDay = 90, maxSize = 1000, R0, par
     sumData = caseData[, list(DaysUndetected = sum(pmin(15*24, DetectedHour - InfectedHour, TracedHour - InfectedHour ))/24), by = RunNumber]; 
     meanUndetected = mean(sumData$DaysUndetected)
     p2 = ggplot(sumData, aes(x= DaysUndetected)) + geom_histogram() + geom_vline(xintercept = meanUndetected, colour = "purple", linewidth =2) + xlab("Number of Person-Days \n Infected but Undetected") +
-      scale_x_log10( limits = c(1,1000))
+      scale_x_log10( limits = c(5,500), breaks = c(5,10,20, 50,100,200,500)) + theme(axis.text.y=element_blank(),axis.ticks.y=element_blank()) + ylab("Fraction of Samples")
     
     preDetectDt = caseData[, list(NumInfectedBeforeOutbreakDetected = sum(InfectedHour <= OutbreakDetectedHour)-1), by = RunNumber]
     p3 = ggplot(preDetectDt, aes(x= NumInfectedBeforeOutbreakDetected)) + geom_histogram() + geom_vline(xintercept = mean(preDetectDt$NumInfectedBeforeOutbreakDetected), colour = "purple", linewidth =2) +
-      xlab("Number Infected \n Before Outbreak Detected") +scale_x_continuous(breaks = seq(0,16, by = 1), limits = c(0,16))
+      xlab("Number Infected \n Before Outbreak Detected") +scale_x_continuous(breaks = seq(0,16, by = 2), limits = c(-1,16))
     
     casesAfterOutreakDetected = caseData[InfectedHour > OutbreakDetectedHour & (InfectedHour + params["timeToPeak"] + params["timeFromPeakTo0"] <= SimulationEndHour), list(NumInfected)]
     bootStrapRe = sapply(1:50, function(i){mean(sample(casesAfterOutreakDetected$NumInfected, size = nrow(casesAfterOutreakDetected), replace = TRUE))})
-    p4 = ggplot(data = data.table(ReEstimate = bootStrapRe), aes(x= ReEstimate)) + geom_histogram() + scale_x_continuous(limits = c(0,2)) + xlab("Bootstrapped Re Estimate \n (After Outbreak Detected)") + 
+    p4 = ggplot(data = data.table(ReEstimate = bootStrapRe), aes(x= ReEstimate)) + geom_histogram(binwidth = 0.02) + scale_x_continuous(limits = c(0,2)) + xlab("Bootstrapped Re Estimate \n (After Outbreak Detected)") + 
       theme(axis.text.y=element_blank(),axis.ticks.y=element_blank()) + ylab("Fraction of Samples")
     
     

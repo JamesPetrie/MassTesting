@@ -218,7 +218,8 @@ struct Case {
         getTested(hour, params);
       }
       
-      if(hour == hourSymptoms){
+      if(hour == hourSymptoms && adheresToTesting){
+        state = QUARANTINE;
         getTested(hour, params);
       }
       // todo: check for symptoms
@@ -226,7 +227,7 @@ struct Case {
     }else if(state == QUARANTINE){
       // check if need to test again (at potentially different frequency)
       // todo: make parameter
-      if(hour - hourLastTested > 24 ){
+      if(hour - hourLastTested > 12 ){
         getTested(hour, params);
       }
       // todo: check if should move back into NORMAL state 
