@@ -26,12 +26,11 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens. Made by James Pet
        sidebarLayout(
           sidebarPanel(
             h3("Effectiveness Calculation:"),
+            withMathJax(p('The graph is created by finding the largest \\(R_0\\) (modified by varying peak viral load) for each testing strategy such that \\(R_e \\leq 1\\). Pathogens below each line can be controlled by that testing strategy.')),
+            withMathJax(p('\\(R_e\\) is the effective reproduction number when using a mass-testing strategy. If \\(R_e < 1\\) then the number of infected cases will decrease.')),
             withMathJax(p('$$R_e = R_0 \\cdot (1 - \\gamma  \\cdot \\beta \\cdot \\sigma) \\cdot (1-\\lambda)$$')),
             
-            withMathJax(p('\\(R_e\\) is the effective reproduction number when using a mass-testing strategy. If \\(R_e < 1\\) then the number of infected cases will decrease.')),
-            
-            withMathJax(p('The graph is created by finding the largest \\(R_0\\) (modified by varying peak viral load) for each testing strategy such that \\(R_e \\leq 1\\). Pathogens below each line can be controlled by that testing strategy.')),
-                  #sliderInput("contactsPerDay","Contacts Per Day:", min = 0,max = 40,value = 13),
+                     #sliderInput("contactsPerDay","Contacts Per Day:", min = 0,max = 40,value = 13),
             sliderInput("fracTest",withMathJax(p('\\(\\gamma\\): Fraction of (homogeneous) population testing regularly:')), min = 0,max = 0.995,value = 0.90),
             sliderInput("fracIso",withMathJax(p('\\(\\beta\\):  Isolation effectiveness (fraction reduction in transmissions for detected positives):')), min = 0,max = 0.995,value = 0.90),
             withMathJax(p('\\(\\sigma\\):   Fraction of counterfactual transmissions occurring after receiving a positive test result. The calculation is shown in the Model tab (depending on viral load trajectory, test frequency, and test delay)')),
@@ -81,7 +80,7 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens. Made by James Pet
            # todo: figure of characteristic curve
            p("The infectiousness and test sensitivity for a pathogen over the course of infection depend on the viral load trajectory. A viral load trajectory can be characterized by the peak viral load and the time taken to reach the peak."),
           
-           h3("Example Viral Load Trajectories with \\(R_0=3\\)"),
+           h3("Example Viral Load Trajectories with \\(R_0=4.5\\)"),
            plotOutput("Trajectories", height="500px"),
            h3("Fraction of transmissions after a positive test"),
            #Todo: Add figures for fraction of transmissions occuring after positive test for each trajectory
@@ -103,34 +102,31 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens. Made by James Pet
          
        )
      ),
-     tabPanel(
-       "Economic Cost",   
-       sidebarLayout(
-         sidebarPanel(
-           sliderInput("variableTestCost","Variable Cost Per Test (USD):", min = 1,max = 100,value = 10),
-           sliderInput("isolationCost","Cost of supporting case isolation:", min = 0,max = 50000,value = 5000),
-          
-           sliderInput("fixedAnnualizedDailyTestCost","Annual Fixed Cost per Daily Test Capability:", min = 0.01,max = 10,value = 0.28),
-           wellPanel(
-             helpText(   
-                         a("SalivaDirect Protocol with $1.21 per sample in reagents. ",     href="https://doi.org/10.1016/j.medj.2020.12.010", target="_blank"),
-                         HTML("Reduce cost of logistics and labour to below $1 using unstaffed booths with regular sample collection by a scalable service like Uber or Amazon delivery in combination with highly automated PCR labs.")
-             )
-           )
-         ),
-         mainPanel(
-           plotOutput("PrevalenceCost", height="500px")
-
-           # todo: add as function of import rate (with targeted strategies as an option)
-           # Todo: add sources for fixed and variable costs
-         )
-         
-       )
-
-       
-
-      
-      )
+     # tabPanel(
+     #   "Economic Cost",   
+     #   sidebarLayout(
+     #     sidebarPanel(
+     #       sliderInput("variableTestCost","Variable Cost Per Test (USD):", min = 1,max = 100,value = 10),
+     #       sliderInput("isolationCost","Cost of supporting case isolation:", min = 0,max = 50000,value = 5000),
+     #      
+     #       sliderInput("fixedAnnualizedDailyTestCost","Annual Fixed Cost per Daily Test Capability:", min = 0.01,max = 10,value = 0.28),
+     #       wellPanel(
+     #         helpText(   
+     #                     a("SalivaDirect Protocol with $1.21 per sample in reagents. ",     href="https://doi.org/10.1016/j.medj.2020.12.010", target="_blank"),
+     #                     HTML("Reduce cost of logistics and labour to below $1 using unstaffed booths with regular sample collection by a scalable service like Uber or Amazon delivery in combination with highly automated PCR labs.")
+     #         )
+     #       )
+     #     ),
+     #     mainPanel(
+     #       plotOutput("PrevalenceCost", height="500px")
+     # 
+     #       # todo: add as function of import rate (with targeted strategies as an option)
+     #       # Todo: add sources for fixed and variable costs
+     #     )
+     #     
+     #   )
+     # 
+     #  )
 
 
    )

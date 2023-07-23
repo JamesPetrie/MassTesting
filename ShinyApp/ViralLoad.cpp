@@ -51,6 +51,33 @@ inline double computeViralLoad(double time, const NumericVector params) {
   return pow(10, logLoad);
 }
 
+// [[Rcpp::export]]
+NumericVector fracDiscoveredByHour(const NumericVector params){
+  
+  int testPeriod = params["testPeriod"];
+  
+  int testDelay = params["testDelay"];
+  int stopTime = params["timeToPeak"] + std::min((double)params["timeFromPeakTo0"],(double)params["maxTimeAfterPeak"]) ;
+  
+  NumericVector fracDiscovered(std::floor(stopTime));
+  
+  double numOffsets = testPeriod;
+  for(int offset =0;offset<testPeriod;offset++){
+    double probStillNegative = 1.0;
+
+    for(int time =0;time + testDelay < stopTime;time++){
+      if((time - offset)%testPeriod == 0){
+        double probPos = probPositive(computeViralLoad(time, params), params);
+        probStillNegative = probStillNegative*(1-probPos);
+      }
+      
+      fracDiscovered[time + testDelay] += (1.0/numOffsets)*(1-probStillNegative);
+      
+    }
+  }
+  
+  return(fracDiscovered);
+}
 
 
 // computes expected transmissions over specified hour range relative to day of infection
@@ -103,6 +130,7 @@ double fracAfterPositive(const NumericVector params){
   }
   return(transmissionsAfter/sumTransmissions(0, stopTime, params));
 }
+
 
 
 
