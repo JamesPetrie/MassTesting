@@ -21,17 +21,24 @@ using namespace Rcpp;
 // computes probability of infection for a typical contact given viral load
 // [[Rcpp::export]]
 inline double probTransmit(double viralLoad, const NumericVector params) {
+  // todo: check equation against paper that proposed it
   return((viralLoad > 1) * (1 - exp(-params["maxProbTransmitPerExposure"] * pow(viralLoad, 0.51) / (pow(viralLoad, 0.51) + pow(8.9e6, 0.51)))));
 }
 
 // computes probability of a positive PCR result given viral load
 // [[Rcpp::export]]
 inline double probPositive(double viralLoad,const NumericVector params) {
-  if (viralLoad > pow(10, params["minLogPCRViralLoad"])) {
-    return 1;
-  } else {
-    return 0;
-  }
+  double maxSensitivity = 0.995;
+  double slope = 6.0;
+  double midPoint = params["logLimitOfDetection"];
+  
+  return((viralLoad > 1) * maxSensitivity / (1+ exp(-slope*(log10(viralLoad) - midPoint))));
+  
+  //if (viralLoad > pow(10, params["minLogPCRViralLoad"])) {
+  //  return 1;
+  //} else {
+  //  return 0;
+  //}
 }
 
 // compute viral load at a given time relative to infection
