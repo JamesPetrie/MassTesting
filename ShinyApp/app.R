@@ -11,6 +11,7 @@ library(shiny)
 library(shinydashboard)
 library(shinydashboardPlus)
 
+
 source("buildFigures.R")
 
 
@@ -60,7 +61,7 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens. Made by James Pet
        sidebarLayout(
          sidebarPanel(
 
-           sliderInput("minLogPCRViralLoad","Minimum viral load (log10 copies / ml) for PCR detection :", min = 0.0,max = 6.0,value = 3.0, step = 0.5), 
+           sliderInput("logLimitOfDetection","Minimum viral load (log10 copies / ml) for PCR detection :", min = 0.0,max = 6.0,value = 3.0, step = 0.5), 
            plotOutput("TestSensitivity", height="130px"),
            
            sliderInput("maxProbTransmitPerExposure","Maximum Probability of Transmission Per Exposure:", min = 0.1,max = 0.9,value = 0.3), # 0.3 would be consistent with 95% of measles household contacts infected -> 1 - 0.7^8 = 0.94
@@ -142,7 +143,7 @@ server <- function(input, output) {
      inputParams = c(contactsPerHour = input$contactsPerDay/24, testDelay = input$testDelay, fracIso = input$fracIso, fracTest = input$fracTest, 
                      precision = 0.2, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure,
                      relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, 
-                     maskEffect = input$maskEffect, minLogPCRViralLoad = input$minLogPCRViralLoad, initialLogLoad = input$initialLogLoad)
+                     maskEffect = input$maskEffect, logLimitOfDetection = input$logLimitOfDetection, initialLogLoad = input$initialLogLoad)
      
      generateControllabilityFigure(24*as.numeric(input$testPeriods), inputParams)
      
@@ -155,7 +156,7 @@ server <- function(input, output) {
         
      inputParams = c( logPeakLoad = 10, contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, 
                       relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, 
-                      minLogPCRViralLoad = input$minLogPCRViralLoad, initialLogLoad = input$initialLogLoad, precision = 0.15)
+                      logLimitOfDetection = input$logLimitOfDetection, initialLogLoad = input$initialLogLoad, precision = 0.15)
      
       plotTrajectories(inputParams) 
        
@@ -165,7 +166,7 @@ server <- function(input, output) {
    output$FracAfterPositive <- renderPlot({
      inputParams = c(  contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, 
                       relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, 
-                      minLogPCRViralLoad = input$minLogPCRViralLoad, initialLogLoad = input$initialLogLoad, precision = 0.15)
+                      logLimitOfDetection = input$logLimitOfDetection, initialLogLoad = input$initialLogLoad, precision = 0.15)
      
      plotFracTransmissionsAfterPositive(24*as.numeric(input$testPeriods), inputParams)
    })
@@ -176,7 +177,7 @@ server <- function(input, output) {
      plotInfectiousness(inputParams) 
    })
    output$TestSensitivity <- renderPlot({
-     inputParams = c(contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, minLogPCRViralLoad = input$minLogPCRViralLoad)
+     inputParams = c(contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, logLimitOfDetection = input$logLimitOfDetection)
      plotTestSensitivity(inputParams) 
    })
 

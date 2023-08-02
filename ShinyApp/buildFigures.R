@@ -44,7 +44,7 @@ generateControllabilityFigure = function(testPeriods, inputParams){
     p = ggplot() +
       geom_line(data= dt, aes(x = DaysToPeak, y = MaxR0, colour = PeriodLabel), linewidth = 1.4) + scale_y_log10(breaks = c(1,2,3,4,6,8,10,12,15, 20), limits = c(0.98,20)) + scale_x_continuous(breaks = 0:12) + 
       guides(colour=guide_legend(title="Test period [Days]")) + xlab("Time to Peak Viral Load [Days]") + ylab("R0")+
-      geom_mark_ellipse(data = pathogenDt, aes(x= DaysToPeak, y = R0, fill = Pathogen, label = Pathogen),size = 0.01 ,label.fontsize = 14, show.legend = F)+  theme(legend.position="bottom") +
+      geom_mark_ellipse(data = pathogenDt, aes(x= DaysToPeak, y = R0, group = Pathogen, label = Pathogen), fill = "purple",size = 0.01 ,label.fontsize = 14, show.legend = F)+  theme(legend.position="bottom") +
       labs(title = "Effect of Mass Testing",  subtitle = "Maximum controllable R0 for different testing strategies")
       #geom_ellipse(data = data.table(), aes(x0 = 5, y0 = 3, a = 1, b = 1, angle = 0), fill = "orange", alpha = 0.4)
     
@@ -96,9 +96,9 @@ generate2TestControllabilityFigure = function(testPeriods, params){
       geom_line(data= dt, aes(x = DaysToPeak, y = MaxR0, colour = as.factor(TestPeriod/24), linetype = TestType), linewidth = 1.4) +
       scale_y_log10(breaks = c(1,2,3,4,6,8,10,12,15, 20), limits = c(0.98,20)) + scale_x_continuous(breaks = 0:12) + 
       guides(colour=guide_legend(title="Test period [Days]")) + guides(linetype=guide_legend(title="Test Type"))  + xlab("Time to Peak Viral Load [Days]") + ylab("R0")+
-      geom_mark_ellipse(data = pathogenDt, aes(x= DaysToPeak, y = R0, fill = Pathogen, label = Pathogen),size = 0.0 ,label.fontsize = 14, show.legend = F, lty = "blank")+  
+      geom_mark_ellipse(data = pathogenDt, aes(x= DaysToPeak, y = R0, group = Pathogen, label = Pathogen),fill = "plum3",size = 0.0 ,label.fontsize = 14, show.legend = F, lty = "blank")+  
       theme(legend.position="bottom") + 
-      labs(title = "Effect of Mass Testing",  subtitle = "Maximum controllable R0 for different testing strategies")
+      labs( subtitle = "Maximum controllable R0 for different testing strategies")
     #geom_ellipse(data = data.table(), aes(x0 = 5, y0 = 3, a = 1, b = 1, angle = 0), fill = "orange", alpha = 0.4)
     
     #geom_ribbon(aes(ymin = 0, ymax = MaxR0, x = TimeToPeak/24, fill = FreqLabel), alpha = 0.5)
@@ -143,9 +143,9 @@ wrangleFracAfterPositive = function(timeToPeak, testPeriod, lod, testDelay, para
   return(fracAfterPositive(newParams))
 }
 
-plotFracReduction = function(params, testPeriods = c(24, 72), n = 30, showPooled = FALSE){
+plotFracReduction = function(params, testPeriods = c(24, 72), timesToPeak = 24*c(3,6,9), n = 30, showPooled = FALSE){
 
-  dt = data.table(expand.grid(TimeToPeak = 24*c(3,6,9), TestPeriod = testPeriods, LOD = seq(2,6, length.out = n), TestDelay = seq(0,48, length.out = n))) 
+  dt = data.table(expand.grid(TimeToPeak = timesToPeak, TestPeriod = testPeriods, LOD = seq(2,6, length.out = n), TestDelay = seq(0,48, length.out = n))) 
   
   dt[, FracAfterPositive :=  wrangleFracAfterPositive(TimeToPeak, TestPeriod, LOD, TestDelay, params), by = list(TimeToPeak, TestPeriod, LOD, TestDelay) ]
   # for each of 2, 6, 10 peak time, peak VL of 8
@@ -212,19 +212,19 @@ plot3Trajectories = function(params){
     scale_x_continuous(breaks = seq(0,16, by = 2))+ theme(text = element_text(size=12), axis.text = element_text(size=12))+
     scale_y_log10(labels = trans_format("log10", math_format(10^.x))) +
     theme(strip.background = element_blank())  + ylab("Viral Load (copies / ml)")+ 
-    labs(title="Viral Load vs. Time")
+    labs(title="Viral Load Trajectory")
   
   
   p2 = ggplot(dt, aes(x = Time/24, y = TestSensitivity))  + geom_line(linewidth = 1.4) +  xlab("Day Since Infection" ) +
     scale_x_continuous(breaks = seq(0,16, by = 2))+theme(text = element_text(size=12), axis.text = element_text(size=12))+
     theme(strip.background = element_blank())  + ylab("Test Sensitivity")+ 
-    labs(title="Test Sensitivity vs. Time")
+    labs(title="Test Sensitivity Trajectory")
   
   p3 = ggplot(dt, aes(x = Time/24, y = DailyTransmissions)) + geom_line(linewidth = 1.4) + 
     xlab("Day Since Infection" ) +theme(text = element_text(size=12), axis.text = element_text(size=12))+
     scale_x_continuous(breaks = seq(0,16, by = 2))+
-    theme(strip.background = element_blank(), strip.text.x = element_blank()) + ylab("Expected Transmissions per Day")+
-    labs(title="Infectiousness vs.Time")
+    theme(strip.background = element_blank(), strip.text.x = element_blank()) + ylab("Expected Daily Transmissions")+
+    labs(title="Infectiousness Trajectory")
   
   return(list(p1,p2,p3))
 }
@@ -270,7 +270,7 @@ plotTrajectories = function(params){
   p3 = ggplot(dt, aes(x = Time/24, y = DailyTransmissions)) + facet_wrap( ~   PeakLabel  , nrow = 1) + geom_line(linewidth = 1.4) + 
     xlab("Day Since Infection" ) +
     scale_x_continuous(breaks = seq(0,16, by = 2))+
-    theme(strip.background = element_blank(), strip.text.x = element_blank()) + ylab("Expected\nTransmissions")
+    theme(strip.background = element_blank(), strip.text.x = element_blank()) + ylab("Expected Daily\nTransmissions")
 
   plot_grid(p1,p2,p3, ncol = 1,align = "v",rel_heights = c( 1,1,1.1)) 
 }
@@ -279,8 +279,10 @@ plotInfectiousness = function(params){
   dt = data.table(ViralLoad = 10^seq(0, 12, length.out = 100))
   dt[ ,ExpectedTransmissions :=params["contactsPerHour"]*24*probTransmit(ViralLoad, params), by = ViralLoad ]
   
-  p = ggplot(dt , aes(x = ViralLoad, y = ExpectedTransmissions)) + geom_line() + scale_x_log10(labels = trans_format("log10", math_format(10^.x))) + xlab("Viral Load [RNA copies/ml]") + ylab("Expected\nTransmissions") +
-    theme(text = element_text(size=12), axis.text = element_text(size=12)) + labs(title="Infectiousness vs. Viral Load")
+  p = ggplot(dt , aes(x = ViralLoad, y = ExpectedTransmissions)) + geom_line() + scale_x_log10(labels = trans_format("log10", math_format(10^.x))) + 
+    xlab("Viral Load (copies/ml)") + ylab("Expected Daily\nTransmissions") +
+    theme(text = element_text(size=12), axis.text = element_text(size=12)) 
+  #+ labs(title="Infectiousness vs. Viral Load")
   return(p)
 }
 
@@ -288,8 +290,10 @@ plotTestSensitivity = function(params){
   dt = data.table(ViralLoad = 10^seq(0, 12, length.out = 100))
   dt[ ,ProbPositive :=probPositive(ViralLoad, params), by = ViralLoad ]
   
-  p = ggplot(dt , aes(x = ViralLoad, y = ProbPositive)) + geom_line() + scale_x_log10(labels = trans_format("log10", math_format(10^.x))) + xlab("Viral Load [RNA copies/ml]") + ylab("Test\n Sensitivity") + 
-    theme(text = element_text(size=12), axis.text = element_text(size=12)) + labs(title="Test Sensitivity vs. Viral Load")
+  p = ggplot(dt , aes(x = ViralLoad, y = ProbPositive)) + geom_line() + scale_x_log10(labels = trans_format("log10", math_format(10^.x))) + 
+    xlab("Viral Load (copies/ml)") + ylab("Test Sensitivity") + 
+    theme(text = element_text(size=12), axis.text = element_text(size=12)) 
+  #+ labs(title="Test Sensitivity vs. Viral Load")
   return(p)
 }
 
@@ -604,11 +608,11 @@ plotMultiplePreventedTransmissions = function(params){
   newParams = copy(params)
   newParams["testDelay"] = 24
   newParams["testPeriod"] = 48
-  p1 = plotPreventedTransmissions(newParams)
+  p1 = plotPreventedTransmissions(newParams) + ggtitle("Test Every 2 Days with 24 Hour Delay") + theme(text = element_text(size=14))
   
   newParams["testDelay"] = 8
   newParams["testPeriod"] = 24
-  p2 = plotPreventedTransmissions(newParams)
+  p2 = plotPreventedTransmissions(newParams) + ggtitle("Test Every Day with 8 Hour Delay") + theme(text = element_text(size=14))
   
   p = plot_grid(p1, p2, nrow= 1)
   
@@ -627,28 +631,30 @@ plotPreventedTransmissions = function(params){
   
   dt[ ,ViralLoad := computeViralLoad(Time, replaceParams(params, TimeToPeak, LogPeakLoad)), by = list(Time, TimeToPeak, LogPeakLoad)]
   
-  dt[ ,HourlyTransmissions := params["contactsPerHour"]*probTransmit(ViralLoad,params), by = list( ViralLoad, TimeToPeak) ]
+  dt[ ,DailyTransmissions := 24*params["contactsPerHour"]*probTransmit(ViralLoad,params), by = list( ViralLoad, TimeToPeak) ]
   
   fracAdhere = params["fracTest"]*params["fracIso"]
   
-  dt[, NonAdhereTransmissions := HourlyTransmissions*(1-fracAdhere)]
-  dt[, RemainingTransmissions := NonAdhereTransmissions + HourlyTransmissions*(fracAdhere*(1-FracDiscovered))]
+  dt[, NonAdhereTransmissions := DailyTransmissions*(1-fracAdhere)]
+  dt[, RemainingTransmissions := NonAdhereTransmissions + DailyTransmissions*(fracAdhere*(1-FracDiscovered))]
   
-  p =  ggplot(dt) + geom_ribbon(aes(x = Time , ymin = RemainingTransmissions, ymax = HourlyTransmissions), fill = "grey", alpha = 0.6) + 
-    geom_line(aes(x = Time , y = HourlyTransmissions ),  linetype = "dashed", colour = "black") +
-    geom_ribbon(fill = "orange" , colour = "orange", alpha = 0.6 ,aes(x = Time ,ymin = 0,  ymax =  NonAdhereTransmissions)) + 
-    geom_ribbon(fill = "purple" , colour = "purple", alpha = 0.6, aes(x = Time , ymin =  NonAdhereTransmissions, ymax = RemainingTransmissions)) + 
-    xlab("Hours Since Infection") + ylab("Expected Transmissions per Hour")
+  dt[, Day:= Time/24]
+  
+  p =  ggplot(dt) + #geom_ribbon(aes(x = Time , ymin = RemainingTransmissions, ymax = HourlyTransmissions), fill = "grey", alpha = 0.6) + 
+    geom_line(aes(x = Day , y = DailyTransmissions ),  linetype = "solid", colour = "black", linewidth = 1) +
+    geom_ribbon(fill = "orange" , colour = "orange", alpha = 0.6 ,aes(x = Day ,ymin = 0,  ymax =  NonAdhereTransmissions)) + 
+    geom_ribbon(fill = "purple" , colour = "purple", alpha = 0.6, aes(x = Day , ymin =  NonAdhereTransmissions, ymax = RemainingTransmissions)) + 
+    xlab("Days Since Infection") + ylab("Expected Transmissions per Day")
   
   return(p)
 }
 
 generateReportFigures = function(){
   p = plotInfectiousness(c(contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3,relativeDeclineSlope = 1.0, maxTimeAfterPeak = 24*30))
-  ggsave("~/MassTesting/figures/infectiousness.pdf", p, width = 4, height = 4,device = "pdf")
+  ggsave("~/MassTesting/figures/infectiousness.pdf", p, width = 2.5, height = 2.5,device = "pdf")
   
   p = plotTestSensitivity(c(logLimitOfDetection = 3))
-  ggsave("~/MassTesting/figures/testSensitivity.pdf", p, width = 4, height = 4,device = "pdf")
+  ggsave("~/MassTesting/figures/testSensitivity.pdf", p, width = 2.5, height = 2.5,device = "pdf")
   
   
   
@@ -659,18 +665,13 @@ generateReportFigures = function(){
   ggsave("~/MassTesting/figures/testSensitivityVsTime.pdf", plots[[2]], width = 4, height = 4,device = "pdf")
   ggsave("~/MassTesting/figures/infectiousnessVsTime.pdf", plots[[3]], width = 4, height = 4,device = "pdf")
   
-  p = plotFracTransmissionsAfterPositive(24*c(1,2,4), c(  contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3, 
-                                                      relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, 
-                                                      logLimitOfDetection = 3, initialLogLoad = -2, precision = 0.25))
-  ggsave("~/MassTesting/figures/fracAfterPositive.pdf", p, width = 8, height = 4,device = "pdf")
-
   
-  p = plotFracReduction(24*c(1), n = 20, FALSE, params=  c(  contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3, 
+  p = plotFracReduction(testPeriods = 24*c(1), timesToPeak = 24*c(3,6,9), n = 20, showPooled = FALSE, params=  c(  contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3, 
                                                           relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logPeakLoad = 8,
                                                         initialLogLoad = -2, precision = 0.25))
   ggsave("~/MassTesting/figures/fracReduction2D.pdf", p, width = 10, height = 6,device = "pdf")
   
-  p = plotFracReduction(24*c(1,2,4), n = 10, TRUE, params=  c(  contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3, 
+  p = plotFracReduction(testPeriods =24*c(1,2,4), timesToPeak = c(3,6,9), n = 10, showPooled = TRUE, params=  c(  contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3, 
                                                       relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logPeakLoad = 8,
                                                       initialLogLoad = -2, precision = 0.25))
   ggsave("~/MassTesting/figures/fracReduction2DSupplement.pdf", p, width = 10, height = 12,device = "pdf")

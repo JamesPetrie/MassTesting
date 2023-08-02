@@ -22,6 +22,7 @@ using namespace Rcpp;
 // [[Rcpp::export]]
 inline double probTransmit(double viralLoad, const NumericVector params) {
   // todo: check equation against paper that proposed it
+
   return((viralLoad > 1) * (1 - exp(-params["maxProbTransmitPerExposure"] * pow(viralLoad, 0.51) / (pow(viralLoad, 0.51) + pow(8.9e6, 0.51)))));
 }
 
