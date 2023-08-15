@@ -168,7 +168,7 @@ server <- function(input, output) {
                       relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, 
                       logLimitOfDetection = input$logLimitOfDetection, initialLogLoad = input$initialLogLoad, precision = 0.15)
      
-     plotPreventedTransmissions(24*as.numeric(input$testPeriods), inputParams)
+     plotFracTransmissionsAfterPositive(24*as.numeric(input$testPeriods), inputParams)
    })
    
    output$Infectiousness <- renderPlot({
