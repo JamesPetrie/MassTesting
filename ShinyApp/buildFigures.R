@@ -44,7 +44,7 @@ generateControllabilityFigure = function(testPeriods, inputParams){
     p = ggplot() +
       geom_line(data= dt, aes(x = DaysToPeak, y = MaxR0, colour = PeriodLabel), linewidth = 1.4) + scale_y_log10(breaks = c(1,2,3,4,6,8,10,12,15, 20), limits = c(0.98,20)) + scale_x_continuous(breaks = 0:12) + 
       guides(colour=guide_legend(title="Test period [Days]")) + xlab("Time to Peak Viral Load [Days]") + ylab("R0")+
-      geom_mark_ellipse(data = pathogenDt, aes(x= DaysToPeak, y = R0, group = Pathogen, label = Pathogen), fill = "purple",size = 0.01 ,label.fontsize = 14, show.legend = F)+  theme(legend.position="bottom") +
+      geom_mark_ellipse(data = pathogenDt, aes(x= DaysToPeak, y = R0, group = Pathogen, label = Pathogen), fill = "plum3",size = 0.00 ,label.fontsize = 14, show.legend = F,  lty = "blank")+  theme(legend.position="bottom") +
       labs(title = "Effect of Mass Testing",  subtitle = "Maximum controllable R0 for different testing strategies")
       #geom_ellipse(data = data.table(), aes(x0 = 5, y0 = 3, a = 1, b = 1, angle = 0), fill = "orange", alpha = 0.4)
     

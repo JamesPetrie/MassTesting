@@ -36,7 +36,7 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens. Made by James Pet
             sliderInput("fracIso",withMathJax(p('\\(\\beta\\):  Isolation effectiveness (fraction reduction in transmissions for detected positives):')), min = 0,max = 0.995,value = 0.90),
             withMathJax(p('\\(\\sigma\\):   Fraction of counterfactual transmissions occurring after receiving a positive test result. The calculation is shown in the Model tab (depending on viral load trajectory, test frequency, and test delay)')),
             sliderInput("testDelay", "Test Delay [hours]:",min = 0, max = 72,value = 12),
-            checkboxGroupInput("testPeriods", "Days Between Tests", choices = list(1, 2,3,5,7,10,30), selected= (list(1,3,7)), inline = TRUE),
+            checkboxGroupInput("testPeriods", "Days Between Tests", choices = list(1, 2,3,5,7,10,30), selected= (list(1,3)), inline = TRUE),
             sliderInput("maskEffect",withMathJax(p('\\(\\lambda\\):  Fraction of transmissions prevented by masks:')), min = 0,max = 0.995,value = 0.0),
 
   
@@ -168,7 +168,7 @@ server <- function(input, output) {
                       relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, 
                       logLimitOfDetection = input$logLimitOfDetection, initialLogLoad = input$initialLogLoad, precision = 0.15)
      
-     plotFracTransmissionsAfterPositive(24*as.numeric(input$testPeriods), inputParams)
+     plotPreventedTransmissions(24*as.numeric(input$testPeriods), inputParams)
    })
    
    output$Infectiousness <- renderPlot({
