@@ -618,6 +618,38 @@ plotMultiplePreventedTransmissions = function(params){
   
 }
 
+# plot fraction transmissions after positive vs test delay for selected testing frequencies for each of the 3 viral load trajectories
+plotFracTransmissionsAfterPositive = function(testPeriods,params){
+  dt = data.table(expand.grid(TestDelay = seq(0, 72, length.out = 12), TestPeriod  = testPeriods, TimeToPeak = 24*c(3,7,10)))
+  dt[, LogPeakLoad := computePeakViralLoad(TimeToPeak, targetR0 =4.5, params), by = TimeToPeak]
+  
+  dt = rbindlist(llply(1:nrow(dt), function(i){
+
+    newParams = copy(params)
+    newParams["logPeakLoad"] = dt[i, LogPeakLoad]
+    newParams["timeToPeak"] = dt[i,TimeToPeak]
+    newParams["timeFromPeakTo0"] = newParams["timeToPeak"]/params["relativeDeclineSlope"]
+    newParams["testPeriod"] = dt[i,TestPeriod]
+    newParams["testDelay"] = dt[i,TestDelay]
+    
+    fracAfter = fracAfterPositive(newParams)
+    
+    
+    return(cbind(dt[i,], data.table(FracAfterPositive = fracAfter)))
+    
+  }))
+  peakNames = dt[, list(PeakLabel = paste("Days to Peak: ", TimeToPeak/24)), by = TimeToPeak]
+  setkey(peakNames, by = "TimeToPeak")
+  peakNames[, PeakLabel := factor(PeakLabel, levels = PeakLabel)]
+  dt = merge(dt, peakNames, by = "TimeToPeak")
+  p = ggplot(dt, aes(x = TestDelay, y = FracAfterPositive, colour =  as.factor(TestPeriod/24))) + geom_line(linewidth = 1.4)  + 
+    scale_y_continuous(expand = c(0, 0), limits = c(0,1.01)) + guides(colour=guide_legend(title="Test Period [Days]")) +
+    xlab("Test Delay [Hours]") + ylab("Fraction Transmissions \n After Positive Test")+ 
+    theme(legend.position = c(0.7, 0.2)) + theme(text = element_text(size=16)) + facet_wrap(~PeakLabel, nrow = 1)+
+    theme(strip.background = element_blank())+  theme(legend.position="bottom") 
+  return(p)
+}
+
 plotPreventedTransmissions = function(params){
 
   dt = data.table(TimeToPeak = params["timeToPeak"])
