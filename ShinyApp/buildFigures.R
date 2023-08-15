@@ -12,7 +12,7 @@ require(metR)
 
 source("ViralLoad.R")
 #source("~/MassTesting/outbreakBranching.R")
-Rcpp::sourceCpp("ViralLoad.cpp")
+#Rcpp::sourceCpp("ViralLoad.cpp")
 
 theme_set(theme(panel.grid.major.y = element_blank(),panel.grid.minor.y = element_blank()) + theme(legend.background = element_rect(fill = "white")) + theme_half_open() + background_grid()  + 
             theme(text = element_text(size=20), axis.text = element_text(size=20)))
@@ -608,13 +608,13 @@ plotMultiplePreventedTransmissions = function(params){
   newParams = copy(params)
   newParams["testDelay"] = 24
   newParams["testPeriod"] = 48
-  p1 = plotPreventedTransmissions(newParams) + ggtitle("Test Every 2 Days with 24 Hour Delay") + theme(text = element_text(size=14))
+  p1 = plotPreventedTransmissions(newParams) + theme(text = element_text(size=14)) #+ ggtitle("Test Every 2 Days with 24 Hour Delay") 
   
   newParams["testDelay"] = 8
   newParams["testPeriod"] = 24
-  p2 = plotPreventedTransmissions(newParams) + ggtitle("Test Every Day with 8 Hour Delay") + theme(text = element_text(size=14))
+  p2 = plotPreventedTransmissions(newParams)  + theme(text = element_text(size=14)) # + ggtitle("Test Every Day with 8 Hour Delay")
   
-  p = plot_grid(p1, p2, nrow= 1)
+  p = plot_grid(p1, p2, nrow= 1, labels = c("A", "B"))
   
 }
 
@@ -746,7 +746,7 @@ generateReportFigures = function(){
 }
 
 
-inputParams = c(contactsPerHour = 13/24, testDelay = 24, fracIso = 0.9, fracTest = 0.9, precision = 0.15, maxProbTransmitPerExposure = 0.3, relativeDeclineSlope = 1.0, maxTimeAfterPeak= 24*30, logPeakLoad = 10, initialLogLoad = -2, logLimitOfDetection = 3)
+#inputParams = c(contactsPerHour = 13/24, testDelay = 24, fracIso = 0.9, fracTest = 0.9, precision = 0.15, maxProbTransmitPerExposure = 0.3, relativeDeclineSlope = 1.0, maxTimeAfterPeak= 24*30, logPeakLoad = 10, initialLogLoad = -2, logLimitOfDetection = 3)
 
 #generateControllabilityFigure(c(24, 48), inputParams)
 #plotTrajectories(inputParams)
@@ -755,5 +755,5 @@ inputParams = c(contactsPerHour = 13/24, testDelay = 24, fracIso = 0.9, fracTest
 #plotFracTransmissionsAfterPositive(c(24, 48), inputParams)
 
 
-plotPreventedTransmissions(c(inputParams, c(testPeriod = 48, timeToPeak = 100, timeFromPeakTo0 = 96)))
+#plotPreventedTransmissions(c(inputParams, c(testPeriod = 48, timeToPeak = 100, timeFromPeakTo0 = 96)))
 
