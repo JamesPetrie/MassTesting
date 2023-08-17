@@ -12,7 +12,7 @@ library(shinydashboard)
 library(shinydashboardPlus)
 
 
-source("buildFigures.R")
+source("/Users/orayasrim/Documents/MassTest/MassTesting/ShinyApp/buildFigures.R")
 
 
 
@@ -66,7 +66,8 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens. Made by James Pet
            
            sliderInput("maxProbTransmitPerExposure","Maximum Probability of Transmission Per Exposure:", min = 0.1,max = 0.9,value = 0.3), # 0.3 would be consistent with 95% of measles household contacts infected -> 1 - 0.7^8 = 0.94
            sliderInput("contactsPerDay","Contacts per day:", min = 1,max = 50,value = 13), 
-           
+           #test
+           sliderInput("probTransmitMid","midpoint test infectiousness :", min = 10e3,max = 10e9,value = 10e4, step = 10e1), 
            plotOutput("Infectiousness", height="140px"),
            sliderInput("relativeDeclineSlope","Relative Slope of Viral Decline:", min = 0.1,max = 3.0,value = 1.0),
            sliderInput("maxDaysAfterPeak","Maximum Number of days after peak \n viral load that infection ends:", min = 0,max = 20,value = 30),
@@ -140,7 +141,7 @@ server <- function(input, output) {
    output$controlRegion <- renderPlot({
      
      #input$contactsPerDay
-     inputParams = c(contactsPerHour = input$contactsPerDay/24, testDelay = input$testDelay, fracIso = input$fracIso, fracTest = input$fracTest, 
+     inputParams = c(contactsPerHour = input$contactsPerDay/24, testDelay = input$testDelay, fracIso = input$fracIso, fracTest = input$fracTest, probTransmitMid = input$probTransmitMid,
                      precision = 0.2, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure,
                      relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, 
                      maskEffect = input$maskEffect, logLimitOfDetection = input$logLimitOfDetection, initialLogLoad = input$initialLogLoad)
@@ -154,7 +155,7 @@ server <- function(input, output) {
      #reactive({
        #req(getIncperMedianlogContour()) # can't plot it until these values have been calculated
         
-     inputParams = c( logPeakLoad = 10, contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, 
+     inputParams = c( logPeakLoad = 10, contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, probTransmitMid = input$probTransmitMid,
                       relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, 
                       logLimitOfDetection = input$logLimitOfDetection, initialLogLoad = input$initialLogLoad, precision = 0.15)
      
@@ -164,20 +165,24 @@ server <- function(input, output) {
    })
    
    output$FracAfterPositive <- renderPlot({
-     inputParams = c(  contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, 
+     inputParams = c(  contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, probTransmitMid = input$probTransmitMid,
                       relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, 
                       logLimitOfDetection = input$logLimitOfDetection, initialLogLoad = input$initialLogLoad, precision = 0.15)
      
      plotFracTransmissionsAfterPositive(24*as.numeric(input$testPeriods), inputParams)
    })
    
-   output$Infectiousness <- renderPlot({
-     inputParams = c(contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, 
-                     relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak)
+   # output$Infectiousness <- renderPlot({
+   #   inputParams = c(contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, 
+   #                   relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak)
+     
+     output$Infectiousness <- renderPlot({
+       inputParams = c(contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, probTransmitMid = input$probTransmitMid,
+                       relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak)
      plotInfectiousness(inputParams) 
    })
    output$TestSensitivity <- renderPlot({
-     inputParams = c(contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, logLimitOfDetection = input$logLimitOfDetection)
+     inputParams = c(contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, logLimitOfDetection = input$logLimitOfDetection, probTransmitMid = input$probTransmitMid)
      plotTestSensitivity(inputParams) 
    })
 

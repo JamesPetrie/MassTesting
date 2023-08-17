@@ -23,7 +23,10 @@ using namespace Rcpp;
 inline double probTransmit(double viralLoad, const NumericVector params) {
   // todo: check equation against paper that proposed it
 
-  return((viralLoad > 1) * (1 - exp(-params["maxProbTransmitPerExposure"] * pow(viralLoad, 0.51) / (pow(viralLoad, 0.51) + pow(8.9e6, 0.51)))));
+  //test
+  double midPoint = params["probTransmitMid"];
+  //return((viralLoad > 1) * (1 - exp(-params["maxProbTransmitPerExposure"] * pow(viralLoad, 0.51) / (pow(viralLoad, 0.51) + pow(8.9e6, 0.51)))));
+  return((viralLoad > 1) * (1 - exp(-params["maxProbTransmitPerExposure"] * pow(viralLoad, 0.51) / (pow(viralLoad, 0.51) + pow(midPoint, 0.51)))));
 }
 
 // computes probability of a positive PCR result given viral load
