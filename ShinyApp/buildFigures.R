@@ -11,7 +11,7 @@ require(metR)
 library(Cairo)
 
 
-folder = '/Users/jpetrie/MassTesting/' #"/Users/orayasrim/Documents/MassTest/MassTesting/" # 
+folder = '/Users/orayasrim/Documents/MassTest/MassTesting/' #"/Users/orayasrim/Documents/MassTest/MassTesting/" # 
 source(paste0(folder, "ShinyApp/ViralLoad.R"))
 #source("~/MassTesting/outbreakBranching.R")
 #Rcpp::sourceCpp("ViralLoad.cpp")
