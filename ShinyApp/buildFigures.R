@@ -8,6 +8,7 @@ require(Rcpp)
 require(plyr)
 require(tidyr)
 require(metR)
+library(Cairo)
 
 
 source("ViralLoad.R")
@@ -92,13 +93,22 @@ generate2TestControllabilityFigure = function(testPeriods, params){
                             DaysToPeak = c(8, 5.5, 3.5, 10, 10), R0 = c(2.5, 8, 2.5, 2.5, 15))
     pathogenDt = pathogenDt[, list(DaysToPeak = DaysToPeak + 0.5*c(1,0,-1,0), R0 = R0 + R0*0.2*c(0, 1,0,-1)), by = Pathogen ]
     
+    dt[TestPeriod/24 ==1 , TestStrategy := paste0(TestType, " Every Day")]
+    
+    dt[TestPeriod/24 != 1 , TestStrategy := paste0(TestType, " Every ", TestPeriod/24, " Days")]
+    
     p = ggplot() +
-      geom_line(data= dt, aes(x = DaysToPeak, y = MaxR0, colour = as.factor(TestPeriod/24), linetype = TestType), linewidth = 1.4) +
+      geom_line(data= dt, aes(x = DaysToPeak, y = MaxR0, colour = TestStrategy, linetype = TestStrategy), linewidth = 1.4) +
+      scale_color_manual(values = c("red", "dodgerblue3", "red", "dodgerblue3")) + 
+      scale_linetype_manual(values = c(2, 2, 1, 1)) +
       scale_y_log10(breaks = c(1,2,3,4,6,8,10,12,15, 20), limits = c(0.98,20)) + scale_x_continuous(breaks = 0:12) + 
-      guides(colour=guide_legend(title="Test period [Days]")) + guides(linetype=guide_legend(title="Test Type"))  + xlab("Time to Peak Viral Load [Days]") + ylab("R0")+
-      geom_mark_ellipse(data = pathogenDt, aes(x= DaysToPeak, y = R0, group = Pathogen, label = Pathogen),fill = "plum3",size = 0.0 ,label.fontsize = 14, show.legend = F, lty = "blank")+  
-      theme(legend.position="bottom") + 
-      labs( subtitle = "Maximum controllable R0 for different testing strategies")
+       xlab("Time to Peak Viral Load [Days]") + ylab("R0") + guides(linetype=guide_legend(title="Test Strategy"), colour =guide_legend(title="Test Strategy")) + 
+      theme(legend.key.width = unit(2,"cm"))+ 
+      geom_mark_ellipse(data = pathogenDt, aes(x= DaysToPeak, y = R0, group = Pathogen, label = Pathogen),fill = "plum3",size = 0.0 ,label.fontsize = 14, show.legend = F, lty = "blank")
+    
+    #guides(colour=guide_legend(title="Test period [Days]")) + guides(linetype=guide_legend(title="Test Type")) 
+     
+      #labs( subtitle = "Maximum controllable R0 for different testing strategies")
     #geom_ellipse(data = data.table(), aes(x0 = 5, y0 = 3, a = 1, b = 1, angle = 0), fill = "orange", alpha = 0.4)
     
     #geom_ribbon(aes(ymin = 0, ymax = MaxR0, x = TimeToPeak/24, fill = FreqLabel), alpha = 0.5)
@@ -145,7 +155,7 @@ wrangleFracAfterPositive = function(timeToPeak, testPeriod, lod, testDelay, para
 
 plotFracReduction = function(params, testPeriods = c(24, 72), timesToPeak = 24*c(3,6,9), n = 30, showPooled = FALSE){
 
-  dt = data.table(expand.grid(TimeToPeak = timesToPeak, TestPeriod = testPeriods, LOD = seq(2,6, length.out = n), TestDelay = seq(0,48, length.out = n))) 
+  dt = data.table(expand.grid(TimeToPeak = timesToPeak, TestPeriod = testPeriods, LOD = seq(1,6, length.out = n), TestDelay = seq(0,48, length.out = n))) 
   
   dt[, FracAfterPositive :=  wrangleFracAfterPositive(TimeToPeak, TestPeriod, LOD, TestDelay, params), by = list(TimeToPeak, TestPeriod, LOD, TestDelay) ]
   # for each of 2, 6, 10 peak time, peak VL of 8
@@ -183,7 +193,7 @@ plotFracReduction = function(params, testPeriods = c(24, 72), timesToPeak = 24*c
 
   
   
-  p = p +   annotate(geom="rect",  xmin = 2, xmax= max(dt$TestDelay), ymin = 2.7, ymax=3.3, fill="blue", alpha=0.2) + 
+  p = p +   annotate(geom="rect",  xmin = 2, xmax= max(dt$TestDelay), ymin = 1.5, ymax=3.3, fill="blue", alpha=0.2) + 
     annotate("text", x = max(dt$TestDelay) - 5, y = 3.2, label = "PCR")
   
   if(showPooled){
@@ -692,7 +702,7 @@ generateReportFigures = function(){
   
   plots = plot3Trajectories(c(  contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3, 
                       relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, 
-                      logLimitOfDetection = 3, initialLogLoad = -2, precision = 0.25))
+                      logLimitOfDetection = 3, initialLogLoad = -2.5, precision = 0.25))
   ggsave("~/MassTesting/figures/viralLoad.pdf", plots[[1]], width = 4, height = 4,device = "pdf")
   ggsave("~/MassTesting/figures/testSensitivityVsTime.pdf", plots[[2]], width = 4, height = 4,device = "pdf")
   ggsave("~/MassTesting/figures/infectiousnessVsTime.pdf", plots[[3]], width = 4, height = 4,device = "pdf")
@@ -700,22 +710,22 @@ generateReportFigures = function(){
   
   p = plotFracReduction(testPeriods = 24*c(1), timesToPeak = 24*c(3,6,9), n = 20, showPooled = FALSE, params=  c(  contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3, 
                                                           relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logPeakLoad = 8,
-                                                        initialLogLoad = -2, precision = 0.25))
+                                                        initialLogLoad = -2.5, precision = 0.25))
   ggsave("~/MassTesting/figures/fracReduction2D.pdf", p, width = 10, height = 6,device = "pdf")
   
-  p = plotFracReduction(testPeriods =24*c(1,2,4), timesToPeak = c(3,6,9), n = 10, showPooled = TRUE, params=  c(  contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3, 
+  p = plotFracReduction(testPeriods =24*c(1,2,4), timesToPeak = 24*c(3,6,9), n = 10, showPooled = TRUE, params=  c(  contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3, 
                                                       relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logPeakLoad = 8,
-                                                      initialLogLoad = -2, precision = 0.25))
+                                                      initialLogLoad = -2.5, precision = 0.25))
   ggsave("~/MassTesting/figures/fracReduction2DSupplement.pdf", p, width = 10, height = 12,device = "pdf")
   
   
   p1 = plotEffectTestFreq(params=  c(  contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3, 
                                       relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logPeakLoad = 8,
-                                      initialLogLoad = -2, precision = 2))
+                                      initialLogLoad = -2.5, precision = 2))
   
   p2 = plotEffectTestDelay(c(  contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3, 
                               relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logPeakLoad = 8,
-                              initialLogLoad = -2, precision = 2))
+                              initialLogLoad = -2.5, precision = 2))
   p = plot_grid(p2,p1, labels = c("A", "B"))
   
   ggsave("~/MassTesting/figures/effectTestFreqAndDelay.pdf", p, width = 10, height = 6,device = "pdf")
@@ -727,39 +737,42 @@ generateReportFigures = function(){
   
   p1 = generate2TestControllabilityFigure(24*c(1,3), c( testDelay = 8, fracIso = 0.95, fracTest = 0.95, 
                                                     maskEffect = 0,precision = 0.45, contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3,
-                                                    relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, initialLogLoad = -2)) 
+                                                    relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, initialLogLoad = -2.5)) 
 
   
   p2 =  generate2TestControllabilityFigure(24*c(1,3), c( testDelay = 8, fracIso = 0.8, fracTest = 0.70, 
                                                          maskEffect = 0,precision = 0.45, contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3,
-                                                         relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, initialLogLoad = -2))
-  p = plot_grid(p1+ theme(legend.position = "None"),p2+ theme(legend.position = "None"), labels = c("A", "B"))
-  grobs <- ggplotGrob(p1)$grobs
-  legend <- grobs[[which(sapply(grobs, function(x) x$name) == "guide-box")]]
-  p = plot_grid(p, legend, nrow = 2, rel_heights = c(1, 0.05))
+                                                         relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, initialLogLoad = -2.5))
+  p = plot_grid(p1+ theme(legend.position = "None") ,p2+ theme(legend.position = "None"), labels = c("A", "B"))
+  grobs <- ggplotGrob(p1+guides(color = guide_legend(nrow = 2, title = "Test Strategy"), linetype = guide_legend(nrow = 2, title = "Test Strategy") ) +
+                        theme(legend.direction = "horizontal",
+                              legend.justification = "left",
+                              legend.box.just = "bottom") )$grobs
+  legend <- grobs[[which(sapply(grobs, function(x) x$name) == "guide-box")]] 
+  p = plot_grid( legend, p , nrow = 2, rel_heights = c(0.12, 1))
   
   ggsave("~/MassTesting/figures/controllabilityComparison.pdf", p, width = 14, height = 8,device = "pdf")
-  
-  p = generateControllabilityFigure(24*c(1,3,7), c( testDelay = 8, fracIso = 0.9, fracTest = 0.9, 
-                                       maskEffect = 0,precision = 0.45, contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3,
-                                      relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logLimitOfDetection = 3, initialLogLoad = -2))
-  ggsave("~/MassTesting/figures/controllability9090.pdf", p, width = 8, height = 8,device = "pdf")
-  
-  p = generateControllabilityFigure(24*c(1,3,7), c( testDelay = 8, fracIso = 0.95, fracTest = 0.95, 
-                                                    maskEffect = 0.4,precision = 0.45, contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3,
-                                                    relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logLimitOfDetection = 3, initialLogLoad = -2))
-  ggsave("~/MassTesting/figures/controllability9595.pdf", p, width = 8, height = 8,device = "pdf")
-  
-  p = generateControllabilityFigure(24*c(1,3,7), c( testDelay = 8, fracIso = 0.8, fracTest = 0.8, 
-                                                    maskEffect = 0.2,precision = 0.45, contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3,
-                                                    relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logLimitOfDetection = 3, initialLogLoad = -2))
-  ggsave("~/MassTesting/figures/controllability8080.pdf", p, width = 8, height = 8,device = "pdf")
-  
-  p = generateControllabilityFigure(24*c(1,3,7), c( testDelay = 24, fracIso = 0.7, fracTest = 0.5, 
-                                                    maskEffect = 0.0,precision = 0.45, contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3,
-                                                    relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logLimitOfDetection = 3, initialLogLoad = -2))
-  ggsave("~/MassTesting/figures/controllability5070.pdf", p, width = 8, height = 8,device = "pdf")
-  
+  # 
+  # p = generateControllabilityFigure(24*c(1,3,7), c( testDelay = 8, fracIso = 0.9, fracTest = 0.9, 
+  #                                      maskEffect = 0,precision = 0.45, contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3,
+  #                                     relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logLimitOfDetection = 3, initialLogLoad = -2))
+  # ggsave("~/MassTesting/figures/controllability9090.pdf", p, width = 8, height = 8,device = "pdf")
+  # 
+  # p = generateControllabilityFigure(24*c(1,3,7), c( testDelay = 8, fracIso = 0.95, fracTest = 0.95, 
+  #                                                   maskEffect = 0.4,precision = 0.45, contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3,
+  #                                                   relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logLimitOfDetection = 3, initialLogLoad = -2))
+  # ggsave("~/MassTesting/figures/controllability9595.pdf", p, width = 8, height = 8,device = "pdf")
+  # 
+  # p = generateControllabilityFigure(24*c(1,3,7), c( testDelay = 8, fracIso = 0.8, fracTest = 0.8, 
+  #                                                   maskEffect = 0.2,precision = 0.45, contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3,
+  #                                                   relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logLimitOfDetection = 3, initialLogLoad = -2))
+  # ggsave("~/MassTesting/figures/controllability8080.pdf", p, width = 8, height = 8,device = "pdf")
+  # 
+  # p = generateControllabilityFigure(24*c(1,3,7), c( testDelay = 24, fracIso = 0.7, fracTest = 0.5, 
+  #                                                   maskEffect = 0.0,precision = 0.45, contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3,
+  #                                                   relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logLimitOfDetection = 3, initialLogLoad = -2))
+  # ggsave("~/MassTesting/figures/controllability5070.pdf", p, width = 8, height = 8,device = "pdf")
+  # 
   # todo: change to daily cost per person (in dollars)
   p = plotPrevalenceCost(c(1,3,7), c(variableTestCost = 2, isolationCost = 5000, fixedAnnualizedDailyTestCost = 1))
   ggsave("~/MassTesting/figures/prevalenceCost.pdf", p, width = 7, height = 7,device = "pdf")
@@ -767,7 +780,7 @@ generateReportFigures = function(){
   
   p = plotMultiplePreventedTransmissions(c(contactsPerHour = 13/24, fracIso = 0.9, fracTest = 0.9, precision = 0.2,
                                                   maxProbTransmitPerExposure = 0.3, relativeDeclineSlope = 1.0, maxTimeAfterPeak= 24*30, 
-                                                  logPeakLoad = 10, initialLogLoad = -2, logLimitOfDetection = 3, timeToPeak = 96, timeFromPeakTo0 = 96))
+                                                  logPeakLoad = 10, initialLogLoad = -2.5, logLimitOfDetection = 3, timeToPeak = 96, timeFromPeakTo0 = 96))
   ggsave("~/MassTesting/figures/preventedTransmissions.pdf", p, width = 10, height = 6,device = "pdf")
   # plot importation cost with vertical lines for UK and Australia?
   

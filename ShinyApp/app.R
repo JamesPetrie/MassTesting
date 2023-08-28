@@ -70,7 +70,7 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens. Made by James Pet
            plotOutput("Infectiousness", height="140px"),
            sliderInput("relativeDeclineSlope","Relative Slope of Viral Decline:", min = 0.1,max = 3.0,value = 1.0),
            sliderInput("maxDaysAfterPeak","Maximum Number of days after peak \n viral load that infection ends:", min = 0,max = 20,value = 30),
-           sliderInput("initialLogLoad","Viral load at time of infection (log10 copies / ml):", min = -4, max = 0,value = -2.0)
+           sliderInput("initialLogLoad","Viral load at time of infection (log10 copies / ml):", min = -4, max = 0,value = -2.5)
            
   # todo: computation of expected transmissions after postive test
 
