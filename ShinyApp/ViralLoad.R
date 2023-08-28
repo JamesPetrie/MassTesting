@@ -4,7 +4,8 @@ require(plyr)
 
 #require(pracma)
 
-Rcpp::sourceCpp('ViralLoad.cpp')
+folder = '/Users/jpetrie/MassTesting/' #"/Users/orayasrim/Documents/MassTest/MassTesting/" # 
+Rcpp::sourceCpp(paste0(folder, '/ShinyApp/ViralLoad.cpp'))
 # 
 # 
 # 
