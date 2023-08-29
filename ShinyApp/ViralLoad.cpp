@@ -25,8 +25,10 @@ inline double probTransmit(double viralLoad, const NumericVector params) {
 
   //test
   double midPoint = params["probTransmitMid"];
+  double upperLimInfect = params["upperLimitInfect"];
   //return((viralLoad > 1) * (1 - exp(-params["maxProbTransmitPerExposure"] * pow(viralLoad, 0.51) / (pow(viralLoad, 0.51) + pow(8.9e6, 0.51)))));
-  return((viralLoad > 1) * (1 - exp(-params["maxProbTransmitPerExposure"] * pow(viralLoad, 0.51) / (pow(viralLoad, 0.51) + pow(midPoint, 0.51)))));
+  //return((viralLoad > 1) * (1 - exp(-params["maxProbTransmitPerExposure"] * pow(viralLoad, 0.51) / (pow(viralLoad, 0.51) + pow(midPoint, 0.51)))));
+  return((viralLoad > 1) * (1 - exp(-params["maxProbTransmitPerExposure"] * pow(viralLoad, upperLimInfect) / (pow(viralLoad, upperLimInfect) + pow(midPoint, upperLimInfect)))));
 }
 
 // computes probability of a positive PCR result given viral load
