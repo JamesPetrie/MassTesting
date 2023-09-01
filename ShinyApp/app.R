@@ -12,7 +12,8 @@ library(shinydashboard)
 library(shinydashboardPlus)
 
 
-folder = '/Users/orayasrim/Documents/MassTest/MassTesting/' #"/Users/orayasrim/Documents/MassTest/MassTesting/" # 
+
+folder ="/Users/orayasrim/Documents/MassTest/MassTesting/" # '/Users/jpetrie/MassTesting/' # 
 source(paste0(folder, "ShinyApp/buildFigures.R"))
 
 
