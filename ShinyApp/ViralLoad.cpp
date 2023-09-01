@@ -59,7 +59,7 @@ double sumTransmissions(double startTime, double endTime,const NumericVector par
   int n =   10 + 90*params["precision"];
   double a = startTime;
   double b = endTime;
-  double h = (b - a)/n;
+  double h = (b - a)/n; 
   double val = h/2.0*(params["contactsPerHour"]*probTransmit(computeViralLoad(a, params), params));
   
   for(int i=1;i<n;i++){

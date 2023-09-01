@@ -372,6 +372,7 @@ plotPrevalenceCost = function(testPeriods, params){
 
 
 plotOutbreaks = function(numOutbreaks = 10, endDay = 90, maxSize = 1000, R0, params){
+  #output final dt 
     params["logPeakLoad"] = computePeakViralLoad(params["timeToPeak"], targetR0 =R0, params)
     caseData = rbindlist(llply(1:numOutbreaks, function(i){
       dt = data.table(branchingModel(endDay = endDay, maxSize = maxSize, params)) 
@@ -417,6 +418,7 @@ plotOutbreaks = function(numOutbreaks = 10, endDay = 90, maxSize = 1000, R0, par
       xlab("Number Infected \n Before Outbreak Detected") +scale_x_continuous(breaks = seq(0,16, by = 1), limits = c(0,16))
     
     casesAfterOutreakDetected = caseData[InfectedHour > OutbreakDetectedHour & (InfectedHour + params["timeToPeak"] + params["timeFromPeakTo0"] <= SimulationEndHour), list(NumInfected)]
+    #re redo using dt ( re after the outbreak is detected)
     bootStrapRe = sapply(1:50, function(i){mean(sample(casesAfterOutreakDetected$NumInfected, size = nrow(casesAfterOutreakDetected), replace = TRUE))})
     p4 = ggplot(data = data.table(ReEstimate = bootStrapRe), aes(x= ReEstimate)) + geom_histogram() + scale_x_continuous(limits = c(0,2)) + xlab("Bootstrapped Re Estimate \n (After Outbreak Detected)") + 
       theme(axis.text.y=element_blank(),axis.ticks.y=element_blank()) + ylab("Fraction of Samples")
