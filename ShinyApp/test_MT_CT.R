@@ -169,16 +169,6 @@ p2 <- ggplot(data = dt_final[Disease == "SARS-CoV-1"]) + geom_line(aes(x = Fract
 #ggsave("/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_SARS.pdf", p2, width = 7, height = 4,device = "pdf")
 
 
-p <- ggplot(data = dt_final[Disease == "1918 Influenza"])+
-  geom_line( aes(y = moving_avg, x = dates, fill = "3 SD"),alpha = 0.5) + geom_ribbon(data = moving, aes(y = moving_avg, x = dates,ymin = moving_avg, ymax = moving_avg + sd2, fill = "2 SD"),alpha = 0.5) + geom_ribbon(data = moving, aes(y = moving_avg, x = dates,ymin = moving_avg, ymax = moving_avg + sd1, fill = "1 SD"),alpha = 0.5) +  geom_point(data = moving, aes(x = dates, y= actual_case, colour ="brown1"),size = 0.5) +geom_line(data = moving, aes(x = dates, y=moving_avg, colour="blue")) + 
-  theme_minimal() + scale_color_identity(name = "Model",
-                                         breaks = c("brown1", "blue", "purple", "orange","violet"),
-                                         labels = c("Observed Data", "Rolling Error Average", "1SD", "2SD","3SD"),
-                                         guide = "legend") + theme_minimal() +
-  labs(title = "Predictive Confidence Interval for Tak Province", y =("Cases"), x = ("Date (2022)"), colour="Compartment") + guides(color=guide_legend(title="Model")) + scale_fill_manual("",values=c("purple","orange","violet"))
-
-
-
 a <- ggplot(dt_final) +
   aes(
     x = FractionTraced,
@@ -189,12 +179,30 @@ a <- ggplot(dt_final) +
   geom_line() +
   scale_color_distiller(palette = "Set2", direction = 1) +
   labs(
-    x = "x lab title ",
-    y = "y lab title",
-    title = "title main"
+    x = "Proportion of Contacts Traced",
+    y = "Effective Reproduction Number (Re)",
+    title = "Re vs Proportion of Contacts Traced"
   ) +
   theme_minimal() +
   facet_wrap(vars(Disease))
+
+# a <- ggplot(dt_final) +
+#   aes(
+#     x = FractionTraced,
+#     y = Re,
+#     colour = factor(testPeriod),
+#     group = testPeriod,
+#     fill = factor(testPeriod)
+#   ) +
+#   geom_line() + scale_colour_discrete(name = "testPriod") +
+#   labs(
+#     x = "x lab title ",
+#     y = "y lab title",
+#     title = "title main"
+#   ) +
+#   theme_minimal() +
+#   facet_wrap(vars(Disease))
+
 
 a <- ggplot(dt_final) +
   aes(
@@ -204,31 +212,14 @@ a <- ggplot(dt_final) +
     group = testPeriod,
     fill = factor(testPeriod)
   ) +
-  geom_line() + scale_colour_discrete(name = "testPriod") +
+  geom_line() + scale_colour_manual(values = colorRampPalette(brewer.pal(8, "Set2"))(11), name = "Test Period (Days)") + 
   labs(
-    x = "x lab title ",
-    y = "y lab title",
-    title = "title main"
+    x = "Proportion of Contacts Traced",
+    y = "Effective Reproduction Number (Re)",
+    title = "Re vs Proportion of Contacts Traced"
   ) +
-  theme_minimal() +
-  facet_wrap(vars(Disease))
+  theme_minimal() + theme(legend.title=element_text(size=7),legend.key.size = unit(0.4, 'cm'),legend.text = element_text(size=7))+ 
+  facet_wrap(vars(Disease)) 
 
-
-a <- ggplot(dt_final) +
-  aes(
-    x = FractionTraced,
-    y = Re,
-    colour = factor(testPeriod),
-    group = testPeriod,
-    fill = factor(testPeriod)
-  ) +
-  geom_line() + scale_colour_manual(values = colorRampPalette(brewer.pal(8, "Set2"))(11), name = "My name") + 
-  labs(
-    x = "x lab title ",
-    y = "y lab title",
-    title = "title main"
-  ) +
-  theme_minimal() +
-  facet_wrap(vars(Disease))
-
+ggsave("/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_test_period.pdf", a, width = 7, height = 4,device = "pdf")
 
