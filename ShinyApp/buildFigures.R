@@ -16,6 +16,14 @@ source(paste0(folder, "ShinyApp/ViralLoad.R"))
 #source("~/MassTesting/outbreakBranching.R")
 #Rcpp::sourceCpp("ViralLoad.cpp")
 
+
+typicalInitalLogLoad = -2.5
+typicalPcrLogLod = 2.5
+typicalAntigenLogLod = 5
+infectiousMid = 8.9e6 # from Ke et al
+typicalInfectH = 0.51 # from Ke et al
+
+
 theme_set(theme(panel.grid.major.y = element_blank(),panel.grid.minor.y = element_blank()) + theme(legend.background = element_rect(fill = "white")) + theme_half_open() + background_grid()  + 
             theme(text = element_text(size=20), axis.text = element_text(size=20)))
 
@@ -388,6 +396,9 @@ plotEffectTestDelay = function(params){
   return(p)
 }
 
+# todo: change to daily cost per person (in dollars)
+# p = plotPrevalenceCost(c(1,3,7), c(variableTestCost = 2, isolationCost = 5000, fixedAnnualizedDailyTestCost = 1))
+# ggsave(paste0(folder,"figures/prevalenceCost.pdf"), p, width = 7, height = 7,device = "pdf"
 plotPrevalenceCost = function(testPeriods, params){
   # need cost per test
   # need cost per isolation
@@ -692,19 +703,91 @@ plotPreventedTransmissions = function(params){
   return(p)
 }
 
+
+generateCovidFracPrevented = function(params){
+  covidParams = copy(params)
+  covidParams["timeToPeak"] = 8*24 # assuming 8 days to peak for Wuhan Covid-19
+  covidParams["timeFromPeakTo0"] = covidParams["timeToPeak"]*covidParams["relativeDeclineSlope"]
+  covidParams["logPeakLoad"] = computePeakViralLoad(timeToPeak, targetR0 = 2.5, covidParams) # assuming R0=2.5 for Wuhan Covid-19
+  
+  testScenarios = list(list(TestDelay = 0, TestPeriod = 24, LogLimitOfDetection  = typicalAntigenLogLod, Label = "Rapid Antigen"),
+                       list(TestDelay = 8, TestPeriod = 24, LogLimitOfDetection  = typicalPcrLogLod, Label = "Fast PCR (8 Hours)"),
+                       list(TestDelay = 48, TestPeriod = 24, LogLimitOfDetection = typicalPcrLogLod, Label = "Slow PCR (48 Hours)")
+                       )
+  
+  # iterate over 3 testing scenarios then iterate over frac adherence
+  dt = rbindlist(llply(testScenarios, function(testScenario){
+    newParams = copy(covidParams)
+    newParams["logLimitOfDetection"] = testScenario$LogLimitOfDetection
+    newParams["testDelay"] = testScenario$TestDelay
+    newParams["testPeriod"] = testScenario$TestPeriod
+    
+    fracPrevented = fracAfterPositive(newParams)
+    
+    dt = rbindlist(llply(seq(0,1, by = 0.01), function(fracAdherence){
+      
+      return(data.table(TestType = testScenario$Label, FracPrevented = fracPrevented*fracAdherence, FracCombinedAdherence = fracAdherence))
+    }))
+    return(dt)
+  }))
+  
+  p2 = ggplot(dt,aes(x = FracCombinedAdherence, y = FracPrevented, colour = TestType)) + geom_line() +
+    xlab("Fraction Adherence") + ylab("Fraction Transmissions Prevented") + theme( legend.position = c(0.1, 0.85)) +
+    ylim(0,1) + #scale_y_continuous(breaks = seq(0,1, by = 0.2), labels = paste0(signif(100*seq(0,1, by = 0.2), 1), "%")) + 
+    guides(colour=guide_legend(title="Test Type"))
+  
+  
+  
+  covidParams["logLimitOfDetection"] = typicalPcrLogLod
+  covidParams["testDelay"] = 8
+  # iterate over 3 adherence scenarios then iterate over test frequency (for fast PCR)
+  dt = rbindlist(llply(c(0.1, 0.5, 0.9), function(fracAdherence){
+   
+    dt = rbindlist(llply(floor(exp(seq(log(12), log(24*16), length.out = 80))), function(testPeriod){
+      newParams = copy(covidParams)
+      
+      newParams["testPeriod"] = testPeriod
+      
+      fracPrevented = fracAfterPositive(newParams)*fracAdherence
+      
+      return(data.table(TestType = testScenario$Label, TestPeriod = testPeriod, FracPrevented = fracPrevented, FracCombinedAdherence = fracAdherence))
+    }))
+    return(dt)
+  }))
+  
+  p1 = ggplot(dt,aes(x = 24/TestPeriod, y = FracPrevented, colour = as.factor(FracCombinedAdherence))) + geom_line()+
+    xlab("Tests Per Day") + ylab("Fraction Transmissions Prevented") + ylim(0,1)+
+    guides(colour=guide_legend(title="Fraction Adherence")) + 
+    scale_x_log10(breaks = c(1/16, 1/8, 1/4, 0.5, 1,2), labels= c("1/16","1/8", "1/4", "1/2", "1", "2")) + 
+    theme(legend.position = c(0.1, 0.85))
+  p1
+  
+  interventions = data.table(Intervention = c("Only schools and\nuniversities closed",  "Most nonessential\nbusinesses closed"), Effect = c(0.379,  0.266))
+  
+
+  p1 = p1 + geom_hline(data = interventions, aes(yintercept = Effect), linetype = "dashed", colour = "black") + geom_text(data = interventions, aes(x = 2,y = Effect,label = Intervention),  colour = "black", vjust = 0.5, hjust = 1, size = 3.5 )
+    
+    
+  p2 = p2 + geom_hline(data = interventions, aes(yintercept = Effect), linetype = "dashed", colour = "black") + geom_text(data = interventions, aes(x = 1,y = Effect,label = Intervention),  colour = "black", vjust = 0.5, hjust = 1, size = 3.5 )
+  
+  
+  p = plot_grid(p1,p2, labels = c("A", "B"))
+  p
+}
+
 generateReportFigures = function(){
-  testValue = 8.9e4
-  p = plotInfectiousness(c(contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3,relativeDeclineSlope = 1.0, maxTimeAfterPeak = 24*30, probTransmitMid = testValue))
+
+  p = plotInfectiousness(c(contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3,relativeDeclineSlope = 1.0, maxTimeAfterPeak = 24*30, probTransmitMid = infectiousMid, infectHParam = typicalInfectH))
   ggsave(paste0(folder,"figures/infectiousness.pdf"), p, width = 2.5, height = 2.5,device = "pdf")
   
-  p = plotTestSensitivity(c(logLimitOfDetection = 3, probTransmitMid = testValue))
+  p = plotTestSensitivity(c(logLimitOfDetection = 3, probTransmitMid = infectiousMid))
   ggsave(paste0(folder,"figures/testSensitivity.pdf"), p, width = 2.5, height = 2.5,device = "pdf")
   
   
   
   plots = plot3Trajectories(c(  contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3, 
                       relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, 
-                      logLimitOfDetection = 3, initialLogLoad = -2.5, precision = 0.25, probTransmitMid = testValue))
+                      logLimitOfDetection = 3, initialLogLoad =typicalInitalLogLoad, precision = 0.25, probTransmitMid = infectiousMid, infectHParam = typicalInfectH))
   ggsave(paste0(folder,"figures/viralLoad.pdf"), plots[[1]], width = 4, height = 4,device = "pdf")
   ggsave(paste0(folder,"figures/testSensitivityVsTime.pdf"), plots[[2]], width = 4, height = 4,device = "pdf")
   ggsave(paste0(folder,"figures/infectiousnessVsTime.pdf"), plots[[3]], width = 4, height = 4,device = "pdf")
@@ -713,22 +796,22 @@ generateReportFigures = function(){
   #figure 3 - 100 times less for the probTransmitMid
   p = plotFracReduction(testPeriods = 24*c(1), timesToPeak = 24*c(3,6,9), n = 20, showPooled = FALSE, params=  c(  contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3, 
                                                           relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logPeakLoad = 8,
-                                                        initialLogLoad = -2.5, precision = 0.25, probTransmitMid = testValue ))
+                                                        initialLogLoad =typicalInitalLogLoad , precision = 0.25, probTransmitMid = infectiousMid, infectHParam = typicalInfectH ))
   ggsave(paste0(folder,"figures/fracReduction2D.pdf"), p, width = 10, height = 6,device = "pdf")
   
   p = plotFracReduction(testPeriods =24*c(1,2,4), timesToPeak = 24*c(3,6,9), n = 10, showPooled = TRUE, params=  c(  contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3, 
                                                       relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logPeakLoad = 8,
-                                                      initialLogLoad = -2.5, precision = 0.25, probTransmitMid = testValue ))
+                                                      initialLogLoad =typicalInitalLogLoad, precision = 0.25, probTransmitMid = infectiousMid, infectHParam = typicalInfectH ))
   ggsave(paste0(folder,"figures/fracReduction2DSupplement.pdf"), p, width = 10, height = 12,device = "pdf")
   
   
   p1 = plotEffectTestFreq(params=  c(  contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3, 
                                       relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logPeakLoad = 8,
-                                      initialLogLoad = -2.5, precision = 2, probTransmitMid = testValue ))
+                                      initialLogLoad =typicalInitalLogLoad, precision = 2, probTransmitMid = infectiousMid, infectHParam = typicalInfectH ))
   
   p2 = plotEffectTestDelay(c(  contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3, 
                               relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logPeakLoad = 8,
-                              initialLogLoad = -2.5, precision = 2, probTransmitMid = testValue ))
+                              initialLogLoad = typicalInitalLogLoad, precision = 2, probTransmitMid = infectiousMid, infectHParam = typicalInfectH ))
   p = plot_grid(p2,p1, labels = c("A", "B"))
   
   ggsave(paste0(folder,"figures/effectTestFreqAndDelay.pdf"), p, width = 10, height = 6,device = "pdf")
@@ -741,12 +824,12 @@ generateReportFigures = function(){
   #figure 2
   p1 = generate2TestControllabilityFigure(24*c(1,3), c( testDelay = 8, fracIso = 0.95, fracTest = 0.95, 
                                                     maskEffect = 0,precision = 0.45, contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3,
-                                                    relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, initialLogLoad = -2.5, probTransmitMid = testValue )) 
+                                                    relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, initialLogLoad = typicalInitalLogLoad, probTransmitMid = infectiousMid, infectHParam = typicalInfectH )) 
 
   
   p2 =  generate2TestControllabilityFigure(24*c(1,3), c( testDelay = 8, fracIso = 0.8, fracTest = 0.70, 
                                                          maskEffect = 0,precision = 0.45, contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3,
-                                                         relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, initialLogLoad = -2.5, probTransmitMid = testValue))
+                                                         relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, initialLogLoad = typicalInitalLogLoad, probTransmitMid = infectiousMid, infectHParam = typicalInfectH))
   p = plot_grid(p1+ theme(legend.position = "None") ,p2+ theme(legend.position = "None"), labels = c("A", "B"))
   grobs <- ggplotGrob(p1+guides(color = guide_legend(nrow = 2, title = "Test Strategy"), linetype = guide_legend(nrow = 2, title = "Test Strategy") ) +
                         theme(legend.direction = "horizontal",
@@ -757,34 +840,12 @@ generateReportFigures = function(){
   
   ggsave(paste0(folder,"figures/controllabilityComparison.pdf"), p, width = 14, height = 8,device = "pdf")
   
-  p = generateControllabilityFigure(24*c(1,3,7), c( testDelay = 8, fracIso = 0.9, fracTest = 0.9, 
-                                       maskEffect = 0,precision = 0.45, contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3,
-                                      relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logLimitOfDetection = 3, initialLogLoad = -2, probTransmitMid = testValue ))
-  ggsave(paste0(folder,"figures/controllability9090.pdf"), p, width = 8, height = 8,device = "pdf")
-  
-  p = generateControllabilityFigure(24*c(1,3,7), c( testDelay = 8, fracIso = 0.95, fracTest = 0.95, 
-                                                    maskEffect = 0.4,precision = 0.45, contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3,
-                                                    relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logLimitOfDetection = 3, initialLogLoad = -2, probTransmitMid = testValue ))
-  ggsave(paste0(folder,"figures/controllability9595.pdf"), p, width = 8, height = 8,device = "pdf")
-  
-  p = generateControllabilityFigure(24*c(1,3,7), c( testDelay = 8, fracIso = 0.8, fracTest = 0.8, 
-                                                    maskEffect = 0.2,precision = 0.45, contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3,
-                                                    relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logLimitOfDetection = 3, initialLogLoad = -2, probTransmitMid = testValue ))
-  ggsave(paste0(folder,"figures/controllability8080.pdf"), p, width = 8, height = 8,device = "pdf")
-  
-  p = generateControllabilityFigure(24*c(1,3,7), c( testDelay = 24, fracIso = 0.7, fracTest = 0.5, 
-                                                    maskEffect = 0.0,precision = 0.45, contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3,
-                                                    relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, logLimitOfDetection = 3, initialLogLoad = -2, probTransmitMid = testValue ))
-  ggsave(paste0(folder,"figures/controllability5070.pdf"), p, width = 8, height = 8,device = "pdf")
-  
-  # todo: change to daily cost per person (in dollars)
-  p = plotPrevalenceCost(c(1,3,7), c(variableTestCost = 2, isolationCost = 5000, fixedAnnualizedDailyTestCost = 1))
-  ggsave(paste0(folder,"figures/prevalenceCost.pdf"), p, width = 7, height = 7,device = "pdf")
-  
+
+
   
   p = plotMultiplePreventedTransmissions(c(contactsPerHour = 13/24, fracIso = 0.9, fracTest = 0.9, precision = 0.2,
                                                   maxProbTransmitPerExposure = 0.3, relativeDeclineSlope = 1.0, maxTimeAfterPeak= 24*30, 
-                                                  logPeakLoad = 10, initialLogLoad = -2.5, logLimitOfDetection = 3, timeToPeak = 96, timeFromPeakTo0 = 96, probTransmitMid = testValue ))
+                                                  logPeakLoad = 10, initialLogLoad =typicalInitalLogLoad, logLimitOfDetection = 3, timeToPeak = 96, timeFromPeakTo0 = 96, probTransmitMid = infectiousMid, infectHParam = typicalInfectH  ))
   ggsave(paste0(folder,"figures/preventedTransmissions.pdf"), p, width = 10, height = 6,device = "pdf")
   # plot importation cost with vertical lines for UK and Australia?
   
@@ -792,6 +853,10 @@ generateReportFigures = function(){
   
   # ? plotOutbreak()
   
+  p = generateCovidFracPrevented(c(contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3, relativeDeclineSlope = 1,
+                               initialLogLoad = typicalInitalLogLoad, maxTimeAfterPeak = 30*24, precision = 0.6, probTransmitMid = infectiousMid , 
+                               infectHParam = typicalInfectH))
+  ggsave(paste0(folder,"figures/covidPreventedTransmissions.pdf"), p, width = 10, height = 6,device = "pdf")
 }
 
 

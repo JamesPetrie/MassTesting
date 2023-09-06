@@ -13,7 +13,7 @@ library(shinydashboardPlus)
 
 
 
-folder ="/Users/orayasrim/Documents/MassTest/MassTesting/" # '/Users/jpetrie/MassTesting/' # 
+folder = '/Users/jpetrie/MassTesting/' # "/Users/orayasrim/Documents/MassTest/MassTesting/" #
 source(paste0(folder, "ShinyApp/buildFigures.R"))
 
 
@@ -69,7 +69,7 @@ ui <- navbarPage("Frequent PCR Testing for Airborne Pathogens. Made by James Pet
            withMathJax(p('$$T_V(V) = N_c \\cdot(1 - e^{-\\theta \\frac{V^h}{V^h + K_m^h}})$$')),
            sliderInput("maxProbTransmitPerExposure",withMathJax(p('$$\\theta \\text{ (max probability transmission per exposure):}$$')), min = 0.1,max = 0.9,value = 0.3), # 0.3 would be consistent with 95% of measles household contacts infected -> 1 - 0.7^8 = 0.94
            sliderInput("contactsPerDay",withMathJax(p('$$N_c \\text{ (contacts per day}):$$')), min = 1,max = 50,value = 13), 
-           sliderInput("upperLimitInfect",withMathJax(p('$$h \\text{ (controls width of transition region):}$$')), min = 0,max = 1,value = 0.1),
+           sliderInput("infectHParam",withMathJax(p('$$h \\text{ (controls width of transition region):}$$')), min = 0,max = 1,value = 0.1),
            shinyWidgets::sliderTextInput("probTransmitMid",withMathJax(p('$$k_m \\text{ (midpoint of infectiousness):}$$')),
                                          choices=c("10*10^3", "10*10^4","10*10^5","10*10^6","10*10^7","10*10^8","10*10^9"),
                                          selected= "10*10^5", grid = TRUE), 
@@ -158,7 +158,7 @@ server <- function(input, output) {
      probTransmitMidNumeric = eval(parse(text = input$probTransmitMid))
      
      #input$contactsPerDay
-     inputParams = c(contactsPerHour = input$contactsPerDay/24, testDelay = input$testDelay, fracIso = input$fracIso, fracTest = input$fracTest, probTransmitMid = probTransmitMidNumeric, upperLimitInfect = input$upperLimitInfect,
+     inputParams = c(contactsPerHour = input$contactsPerDay/24, testDelay = input$testDelay, fracIso = input$fracIso, fracTest = input$fracTest, probTransmitMid = probTransmitMidNumeric, infectHParam = input$infectHParam,
                      precision = 0.2, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure,
                      relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, 
                      maskEffect = input$maskEffect, logLimitOfDetection = input$logLimitOfDetection, initialLogLoad = input$initialLogLoad)
@@ -172,7 +172,7 @@ server <- function(input, output) {
      #reactive({
        #req(getIncperMedianlogContour()) # can't plot it until these values have been calculated
      probTransmitMidNumeric = eval(parse(text = input$probTransmitMid))
-     inputParams = c( logPeakLoad = 10, contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, probTransmitMid = probTransmitMidNumeric,upperLimitInfect = input$upperLimitInfect,
+     inputParams = c( logPeakLoad = 10, contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, probTransmitMid = probTransmitMidNumeric,infectHParam = input$infectHParam,
                       relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, 
                       logLimitOfDetection = input$logLimitOfDetection, initialLogLoad = input$initialLogLoad, precision = 0.15)
      
@@ -183,7 +183,7 @@ server <- function(input, output) {
    
    output$FracAfterPositive <- renderPlot({
      probTransmitMidNumeric = eval(parse(text = input$probTransmitMid))
-     inputParams = c(  contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, probTransmitMid = probTransmitMidNumeric,upperLimitInfect = input$upperLimitInfect,
+     inputParams = c(  contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, probTransmitMid = probTransmitMidNumeric,infectHParam = input$infectHParam,
                       relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, 
                       logLimitOfDetection = input$logLimitOfDetection, initialLogLoad = input$initialLogLoad, precision = 0.15)
      
@@ -196,13 +196,13 @@ server <- function(input, output) {
      
      output$Infectiousness <- renderPlot({
        probTransmitMidNumeric = eval(parse(text = input$probTransmitMid))
-       inputParams = c(contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, probTransmitMid = probTransmitMidNumeric, upperLimitInfect = input$upperLimitInfect,
+       inputParams = c(contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, probTransmitMid = probTransmitMidNumeric, infectHParam = input$infectHParam,
                        relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak)
      plotInfectiousness(inputParams) 
    })
    output$TestSensitivity <- renderPlot({
      probTransmitMidNumeric = eval(parse(text = input$probTransmitMid))
-     inputParams = c(contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, logLimitOfDetection = input$logLimitOfDetection, probTransmitMid = probTransmitMidNumeric,upperLimitInfect = input$upperLimitInfect)
+     inputParams = c(contactsPerHour = input$contactsPerDay/24, maxProbTransmitPerExposure = input$maxProbTransmitPerExposure, relativeDeclineSlope = input$relativeDeclineSlope, maxTimeAfterPeak = 24*input$maxDaysAfterPeak, logLimitOfDetection = input$logLimitOfDetection, probTransmitMid = probTransmitMidNumeric,infectHParam = input$infectHParam)
      plotTestSensitivity(inputParams) 
    })
 
