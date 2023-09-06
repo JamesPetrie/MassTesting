@@ -9,9 +9,9 @@ require(plyr)
 require(tidyr)
 
 
-source("ViralLoad.R")
+source("/Users/orayasrim/Documents/MassTest/MassTesting/ShinyApp/ViralLoad.R")
 #source("~/MassTesting/outbreakBranching.R")
-Rcpp::sourceCpp("ViralLoad.cpp")
+Rcpp::sourceCpp("/Users/orayasrim/Documents/MassTest/MassTesting/ShinyApp/ViralLoad.cpp")
 
 theme_set(theme(panel.grid.major.y = element_blank(),panel.grid.minor.y = element_blank()) + theme(legend.background = element_rect(fill = "white")) + theme_half_open() + background_grid()  + 
             theme(text = element_text(size=20), axis.text = element_text(size=20)))
