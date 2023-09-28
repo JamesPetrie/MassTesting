@@ -279,14 +279,14 @@ struct Case {
     }else{
       double viralLoad = computeViralLoad(hour - hourInfected, params);
       double transmitRate = params["contactsPerHour"] * probTransmit(viralLoad, params);
-      if(hour >= hourInfectionDetected){
-        // modify transmit rate based on state
-        if(state == QUARANTINE){
-          transmitRate *= (1 - params["fracQuar"]);
-        }else if(state == ISOLATION){
-          transmitRate *= (1 - params["fracIso"]);
-        }
+
+      // modify transmit rate based on state
+      if(state == QUARANTINE){
+        transmitRate *= (1 - params["fracQuar"]);
+      }else if(state == ISOLATION){
+        transmitRate *= (1 - params["fracIso"]);
       }
+  
       
       int numTransmissions = rpois(1, transmitRate)[0];
       return(numTransmissions);
@@ -309,12 +309,17 @@ Rcpp::DataFrame branchingModel(int endDay, int maxSize, const NumericVector para
   int testPeriod = params["normalTestPeriod"];
   
   // add 1 initial cases
-  for(int i =0;i<1;i++){
+  // for(int i =0;i<1;i++){
+  //   Case initialCase = Case(0, testPeriod, -1,  params);
+  //   cases.push_back(initialCase);
+  // }
+  
+  for(int i =0;i<10;i++){
     Case initialCase = Case(0, testPeriod, -1,  params);
     cases.push_back(initialCase);
   }
   
-  // iterate over number of days. For each day generate new cases
+  // iterate over number of hours. For each day generate new cases
   for(int hour = 0;hour<endDay*24;hour++){
     
     if(hour % 24 == 0){

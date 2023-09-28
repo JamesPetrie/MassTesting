@@ -11,17 +11,18 @@ require(metR)
 library(Cairo)
 
 
-#folder = '/Users/orayasrim/Documents/MassTest/MassTesting/' #"/Users/orayasrim/Documents/MassTest/MassTesting/" # 
+folder = '/Users/orayasrim/Documents/MassTest/MassTesting/' #"/Users/orayasrim/Documents/MassTest/MassTesting/" # 
 source(paste0(folder, "ShinyApp/ViralLoad.R"))
 #source("~/MassTesting/outbreakBranching.R")
 #Rcpp::sourceCpp("ViralLoad.cpp")
 
 
 typicalInitalLogLoad = -2.5
-typicalPcrLogLod = 2.5
+typicalPcrLogLod = 2.0
 typicalAntigenLogLod = 5
-infectiousMid = 8.9e6 # from Ke et al
+#infectiousMid = 8.9e6 # from Ke et al
 typicalInfectH = 0.51 # from Ke et al
+infectiousMid = 8.9e4 # test
 
 
 theme_set(theme(panel.grid.major.y = element_blank(),panel.grid.minor.y = element_blank()) + theme(legend.background = element_rect(fill = "white")) + theme_half_open() + background_grid()  + 
@@ -69,7 +70,7 @@ generate2TestControllabilityFigure = function(testPeriods, params){
   
   dt[TestType == "Antigen", LOD := 5]
   dt[TestType == "Antigen", TestDelay := 0]
-  dt[TestType == "PCR", LOD := 3]
+  dt[TestType == "PCR", LOD := 2]
   dt[TestType == "PCR", TestDelay :=8]
   
   dt = rbindlist(llply(1:nrow(dt), function(i){
@@ -708,7 +709,7 @@ generateCovidFracPrevented = function(params){
   covidParams = copy(params)
   covidParams["timeToPeak"] = 8*24 # assuming 8 days to peak for Wuhan Covid-19
   covidParams["timeFromPeakTo0"] = covidParams["timeToPeak"]*covidParams["relativeDeclineSlope"]
-  covidParams["logPeakLoad"] = computePeakViralLoad(timeToPeak, targetR0 = 2.5, covidParams) # assuming R0=2.5 for Wuhan Covid-19
+  covidParams["logPeakLoad"] = computePeakViralLoad(covidParams["timeToPeak"], targetR0 = 2.5, covidParams) # assuming R0=2.5 for Wuhan Covid-19
   
   testScenarios = list(list(TestDelay = 0, TestPeriod = 24, LogLimitOfDetection  = typicalAntigenLogLod, Label = "Rapid Antigen"),
                        list(TestDelay = 8, TestPeriod = 24, LogLimitOfDetection  = typicalPcrLogLod, Label = "Fast PCR (8 Hours)"),
@@ -750,7 +751,7 @@ generateCovidFracPrevented = function(params){
       
       fracPrevented = fracAfterPositive(newParams)*fracAdherence
       
-      return(data.table(TestType = testScenario$Label, TestPeriod = testPeriod, FracPrevented = fracPrevented, FracCombinedAdherence = fracAdherence))
+      return(data.table(TestPeriod = testPeriod, FracPrevented = fracPrevented, FracCombinedAdherence = fracAdherence))
     }))
     return(dt)
   }))
