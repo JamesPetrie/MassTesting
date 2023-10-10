@@ -181,7 +181,7 @@ struct Case { // for a case we want to to know when they were infected, earliest
   //constructor for case - have when they were infected, test period ( how often they test), params from mass testing
   Case(int infectedHour, int testPeriod, int infectorId, const NumericVector params): hourInfected(infectedHour), infectedBy(infectorId){
     hourNotInfectious = hourInfected + params["timeToPeak"] + params["timeFromPeakTo0"]; //time not infectious 
-    if( runif(1)[0] < params["ProbDetectSymptoms"]){ //randomly sample with the probability of detecting symptoms
+    if( runif(1)[0] < params["ProbTestSymptoms"]){ //randomly sample whether this is a person that both develops symptoms and tests because of them
       hourSymptoms = hourInfected + params["timeToPeak"] + params["timeFromPeakToSymptoms"]; // if they do detect symptoms, we record when they started having noticable symptoms
     }
     if( runif(1)[0] < params["fracTest"]){ // of the fraction of the population who tests, they can choose to adhere to getting test or not. 
@@ -262,7 +262,6 @@ struct Case { // for a case we want to to know when they were infected, earliest
         }}
 
       if(hour == hourSymptoms){ //
-        
         if(hour - hourLastTested > 10 ){ // can set this to something else define later 
           getTested(hour, params); // you get tested 
         }}

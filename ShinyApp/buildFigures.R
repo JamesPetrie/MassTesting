@@ -60,7 +60,10 @@ replaceParams = function(params, timeToPeak,  logPeakLoad){
 computePeakViralLoad = function(timeToPeak, targetR0,params){
   testParams = copy(params)
   testParams["timeToPeak"] = timeToPeak
-  testParams["timeFromPeakTo0"] = timeToPeak/params["relativeDeclineSlope"]
+  if(! "timeFromPeakTo0" %in% names(testParams)){
+    testParams["timeFromPeakTo0"] = timeToPeak/params["relativeDeclineSlope"]
+    
+  }
   
   cutoffLoad = bisect(a = 0, b = 20, maxiter = 15, fun = function(logPeakLoad){
     testParams["logPeakLoad"] = logPeakLoad
