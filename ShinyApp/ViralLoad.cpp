@@ -35,8 +35,8 @@ inline double probTransmit(double viralLoad,  const NumericVector params) {
 // computes probability of a positive PCR result given viral load
 // [[Rcpp::export]]
 inline double probPositive(double viralLoad,const NumericVector params) {
-  double maxSensitivity = 0.995;
-  double slope = 6.0;
+  double maxSensitivity = params["maxSensitivity"];
+  double slope = params["testSlope"];
   double midPoint = params["logLimitOfDetection"];
   
   return((viralLoad > 1) * maxSensitivity / (1+ exp(-slope*(log10(viralLoad) - midPoint))));
@@ -168,8 +168,46 @@ double fracAfterPositive(const NumericVector params){
   return(transmissionsAfter/sumTransmissionsStable(0, stopTime, params));
 }
 
-
-
+// compute vector with fraction of cases detected vs time since infection
+// [[Rcpp::export]]
+NumericVector fracDetected(NumericVector times, const NumericVector params){
+  int returnSize = times.length();
+  
+  NumericVector frac(returnSize, 0.0);
+  
+  double testPeriod = params["testPeriod"];
+  double testDelay = params["testDelay"];
+  double stopTime = params["timeToPeak"] + std::min((double)params["timeFromPeakTo0"],(double)params["maxTimeAfterPeak"]) ;
+  
+  
+  if(testPeriod <= 0) return(-1.0);
+  
+  int numOffsets = 6 + 20*params["precision"];
+  
+  for(int i=0;i<numOffsets;i++){
+    double offset = ((double)i)/(numOffsets+1)*params["testPeriod"];
+    double remainingProb = 1.0;
+    double testTime = offset;
+    while(testTime <= stopTime ){
+      double probPos = probPositive(computeViralLoad(testTime, params), params);
+      
+      // increase all points after (testTime + testDelay) by 1.0/numOffsets*remainingProb*probPos
+      double detectTime = testTime + testDelay;
+      
+      double probEvent = 1.0/numOffsets*remainingProb*probPos; 
+      for (int j = 0; j < returnSize; j++ ){
+        if(times[j] >=  detectTime ){
+          frac[j] += probEvent;
+        }
+      }
+      
+      remainingProb = remainingProb*(1-probPos);
+      
+      testTime = testTime + testPeriod;
+    }
+  }
+  return(frac);
+}
 
 
 

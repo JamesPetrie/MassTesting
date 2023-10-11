@@ -125,6 +125,56 @@ generate2TestControllabilityFigure = function(testPeriods, params){
   return(p)
 }
 
+
+
+
+generateSymptomsControllabilityFigure = function(testPeriods, symptomTransmissionFractions , params){
+  
+  dt = data.table(expand.grid(TestPeriod = testPeriods, FracTransmitSymptoms = symptomTransmissionFractions))
+
+  
+  dt = rbindlist(llply(1:nrow(dt), function(i){
+    
+    newParams = copy(params)
+    newParams["testPeriod"] = dt[i,TestPeriod]
+    newParams["fracTransmitSymptoms"] = dt[i,FracTransmitSymptoms]
+    
+    
+    return(merge(dt[i,], evaluateStrategy(newParams)))
+  }))
+  
+  
+  if(nrow(dt)>0){
+    
+    freqNames = dt[, list(FreqLabel = paste("1 /", TestPeriod/24), PeriodLabel = paste(TestPeriod/24)), by = TestPeriod]
+    setkey(freqNames, by = "TestPeriod")
+    freqNames[, FreqLabel := factor(FreqLabel, levels = FreqLabel)]
+    freqNames[, PeriodLabel := factor(PeriodLabel, levels = PeriodLabel)]
+    dt = merge(dt, freqNames, by = "TestPeriod")
+    
+    dt[,DaysToPeak := TimeToPeak/24]
+    
+    pathogenDt = data.table(Pathogen = c("SARS-CoV-2 (Wuhan)", "SARS-CoV-2 (Omicron)", "Influenza (1918)", "SARS-CoV-1", "Measles"),
+                            DaysToPeak = c(8, 5.5, 3.5, 10, 10), R0 = c(2.5, 8, 2.5, 2.5, 15))
+    pathogenDt = pathogenDt[, list(DaysToPeak = DaysToPeak + 0.5*c(1,0,-1,0), R0 = R0 + R0*0.2*c(0, 1,0,-1)), by = Pathogen ]
+    
+    dt[TestPeriod/24 ==1 , TestStrategy := paste0("PCR ", " Every Day")]
+    
+    dt[TestPeriod/24 != 1 , TestStrategy := paste0("PCR ", " Every ", TestPeriod/24, " Days")]
+    
+    p = ggplot() +
+      geom_line(data= dt, aes(x = DaysToPeak, y = MaxR0, colour = TestStrategy, linetype = as.factor(FracTransmitSymptoms)), linewidth = 1.4) +
+      scale_color_manual(values = c("red", "dodgerblue3", "red", "dodgerblue3")) + 
+      scale_y_log10(breaks = c(1,2,3,4,6,8,10,12,15, 20), limits = c(0.98,20)) + scale_x_continuous(breaks = 0:12) + 
+      xlab("Time to Peak Viral Load [Days]") + ylab("R0")  + 
+      theme(legend.key.width = unit(2,"cm"))+ 
+      geom_mark_ellipse(data = pathogenDt, aes(x= DaysToPeak, y = R0, group = Pathogen, label = Pathogen),fill = "plum3",size = 0.0 ,label.fontsize = 14, show.legend = F, lty = "blank") +
+      guides(linetype=guide_legend(title="Symptom Transmission Multiple"), colour =guide_legend(title="Test Strategy"))
+   }
+  return(p)
+}
+
+
 replaceParams = function(params, timeToPeak,  logPeakLoad){
   newParams = copy(params)
   newParams["logPeakLoad"] = logPeakLoad
@@ -218,9 +268,9 @@ plotFracReduction = function(params, testPeriods = c(24, 72), timesToPeak = 24*c
   return(p)
 }
 
-plot3Trajectories = function(params){
-  dt = data.table(expand.grid(TimeToPeak = 24*c(6), Time = 24*seq(0,16, length.out = 200))) 
-  dt[, LogPeakLoad := 8] #computePeakViralLoad(TimeToPeak, targetR0 = 4.5, params), by = TimeToPeak]
+plot3Trajectories = function(R0, timeToPeak, params){
+  dt = data.table(expand.grid(TimeToPeak = timeToPeak, Time = 24*seq(0,16, length.out = 200))) 
+  dt[, LogPeakLoad := computePeakViralLoad(TimeToPeak, targetR0 = R0, params), by = TimeToPeak]
   dt[ ,ViralLoad := computeViralLoad(Time, replaceParams(params, TimeToPeak, LogPeakLoad)), by = list(Time, TimeToPeak, LogPeakLoad)]
   
   dt[ ,DailyTransmissions :=24*params["contactsPerHour"]*symptomMult(Time, replaceParams(params, TimeToPeak, LogPeakLoad))*probTransmit(ViralLoad,params), by = list( Time, ViralLoad, LogPeakLoad, TimeToPeak) ]
@@ -313,6 +363,77 @@ plotTestSensitivity = function(params){
     xlab("Viral Load (copies/ml)") + ylab("Test Sensitivity") + 
     theme(text = element_text(size=12), axis.text = element_text(size=12)) 
   #+ labs(title="Test Sensitivity vs. Viral Load")
+  return(p)
+}
+
+plotViralLoad = function(params){
+  dt = data.table(Time = 24*seq(0, 12, length.out = 100))
+  dt[ ,ViralLoad := computeViralLoad(Time, params), by = Time]
+  
+  
+  p = ggplot(dt , aes(x = Time, y = ViralLoad)) + geom_line() + scale_y_log10(labels = c("V0"), breaks = 10^params["initialLogLoad"] ) + 
+    scale_x_continuous(labels = c("tau_p", "tau_p + tau_r"), breaks = c(params["timeToPeak"], params["timeToPeak"] + params["timeFromPeakTo0"])) + 
+    xlab("Time") + ylab("Log10 Viral Load") + 
+    theme(text = element_text(size=12), axis.text = element_text(size=12)) 
+  #+ labs(title="Test Sensitivity vs. Viral Load")
+  return(p)
+}
+
+
+plotDailyTransmissionsWithoutTesting = function(params){
+  dt = data.table(Time = 24*seq(0, 12, length.out = 100))
+  dt[ ,ViralLoad := computeViralLoad(Time, params), by = Time]
+  dt[ ,DailyTransmissions := 24*params["contactsPerHour"]*symptomMult(Time, params)*probTransmit(ViralLoad,params), by = Time ]
+  ggplot(dt,aes(x = Time, y = DailyTransmissions)) + geom_line()  + xlab("Days Since Infection") + ylab("Daily Transmissions\nWithout Testing")
+}
+
+
+
+plotShapeSensitivity = function(params){
+  # 4 panel plot: viral trajectories, default expected daily transmissions, 
+  # fraction detected vs time, modified expected daily transmissions
+  
+  # 4 scenarios with R0 = 3: (2 days to peak, 6 days to peak) x (truncated after peak, symmetric)
+  
+  # iterate over scenarios, calculate viral load over time for each, transmission rate for every scenario and hour,
+  # fraction discovered for every scenario and hour, modified transmissions for every scenario and hour
+  
+  dt = data.table(expand.grid(TimeToPeak = 24*c(3,7), Time = 24*seq(0,12, length.out = 200), Truncated = c(TRUE, FALSE))) 
+
+  truncatedParams = copy(params)
+  truncatedParams["relativeDeclineSlope"] = 100
+  targetR0 = 3
+  
+  dt[Truncated == TRUE, LogPeakLoad := computePeakViralLoad(TimeToPeak, targetR0 = targetR0, truncatedParams), by = TimeToPeak]
+  dt[Truncated == FALSE, LogPeakLoad := computePeakViralLoad(TimeToPeak, targetR0 = targetR0, params), by = TimeToPeak]
+  
+  
+  dt[Truncated == TRUE, ViralLoad := computeViralLoad(Time, replaceParams(truncatedParams, TimeToPeak, LogPeakLoad)), by = list(Time, TimeToPeak, LogPeakLoad)]
+  dt[Truncated == FALSE, ViralLoad := computeViralLoad(Time, replaceParams(params, TimeToPeak, LogPeakLoad)), by = list(Time, TimeToPeak, LogPeakLoad)]
+  
+  p1 = ggplot(dt,aes(x = Time/24, y = log10(ViralLoad), group = paste(Truncated, TimeToPeak), linetype = Truncated)) + geom_line()   +xlab("Days Since Infection") + ylab("Viral Load (log10 copies/ml)")
+  
+
+  
+  dt[ ,DailyTransmissions :=24*params["contactsPerHour"]*probTransmit(ViralLoad,params), by = list( ViralLoad, TimeToPeak, Truncated) ]
+  
+  p3 = ggplot(dt,aes(x = Time/24, y = DailyTransmissions, group = paste(Truncated, TimeToPeak), linetype = Truncated)) + geom_line()  +xlab("Days Since Infection") + ylab("Default Transmissions")
+  
+  dt[ Truncated == TRUE,FracDetect := fracDetected(Time,replaceParams(truncatedParams, TimeToPeak, LogPeakLoad)), by = list(TimeToPeak, LogPeakLoad) ]
+  dt[ Truncated == FALSE,FracDetect := fracDetected(Time,replaceParams(params, TimeToPeak, LogPeakLoad)), by = list(TimeToPeak, LogPeakLoad) ]
+  
+  
+  p2 = ggplot(dt,aes(x = Time/24, y = FracDetect, group = paste(Truncated, TimeToPeak), linetype = Truncated)) + geom_line()  +xlab("Days Since Infection") + ylab("Probability Infection Detected")
+  
+  
+  dt[, ModifiedTransmissions := (1-FracDetect)*DailyTransmissions]
+  p4 = ggplot(dt,aes(x = Time/24, y = ModifiedTransmissions, group = paste(Truncated, TimeToPeak), linetype = Truncated)) + geom_line()  +xlab("Days Since Infection") + ylab("Modified Transmissions")
+  
+  print(dt[,sum(ModifiedTransmissions/24)/targetR0, by = paste(Truncated, TimeToPeak)])
+  print(dt[,mean(LogPeakLoad/TimeToPeak), by = paste(Truncated, TimeToPeak)])
+  
+  p = plot_grid(p1 + theme(legend.position = "None"),p2 + theme(legend.position = "None"),p3 + theme(legend.position = "None") + ylim(0,3.5),p4 + theme(legend.position = c(0.6, 0.8))+ ylim(0,3.5), nrow = 2, labels = c("A","B","C","D"))
+  
   return(p)
 }
 
@@ -685,7 +806,7 @@ plotPreventedTransmissions = function(params){
   
   dt[ ,ViralLoad := computeViralLoad(Time, replaceParams(params, TimeToPeak, LogPeakLoad)), by = list(Time, TimeToPeak, LogPeakLoad)]
   
-  dt[ ,DailyTransmissions := 24*params["contactsPerHour"]*probTransmit(ViralLoad,params), by = list( ViralLoad, TimeToPeak) ]
+  dt[ ,DailyTransmissions := 24*params["contactsPerHour"]*symptomMult(Time, params)*probTransmit(ViralLoad,params), by = list( Time, ViralLoad, TimeToPeak) ]
   
   fracAdhere = params["fracTest"]*params["fracIso"]
   
@@ -716,22 +837,28 @@ generateCovidFracPrevented = function(params){
   )
   
   # iterate over 3 testing scenarios then iterate over frac adherence
-  dt = rbindlist(llply(testScenarios, function(testScenario){
-    newParams = copy(covidParams)
-    newParams["logLimitOfDetection"] = testScenario$LogLimitOfDetection
-    newParams["testDelay"] = testScenario$TestDelay
-    newParams["testPeriod"] = testScenario$TestPeriod
-    
-    fracPrevented = fracAfterPositive(newParams)
-    
-    dt = rbindlist(llply(seq(0,1, by = 0.01), function(fracAdherence){
+  dt = rbindlist(llply(c(0,1), function(fracTransmitSymptoms){
+    dt = rbindlist(llply(testScenarios, function(testScenario){
+      newParams = copy(covidParams)
+      newParams["logLimitOfDetection"] = testScenario$LogLimitOfDetection
+      newParams["testDelay"] = testScenario$TestDelay
+      newParams["testPeriod"] = testScenario$TestPeriod
+      newParams["fracTransmitSymptoms"] = fracTransmitSymptoms
       
-      return(data.table(TestType = testScenario$Label, FracPrevented = fracPrevented*fracAdherence, FracCombinedAdherence = fracAdherence))
+      fracPrevented = fracAfterPositive(newParams)
+      
+      dt = rbindlist(llply(seq(0,1, by = 0.01), function(fracAdherence){
+        
+        return(data.table(TestType = testScenario$Label, FracPrevented = fracPrevented*fracAdherence, FracCombinedAdherence = fracAdherence, FracTransmitSymptoms = fracTransmitSymptoms))
+      }))
+      return(dt)
     }))
     return(dt)
   }))
   
-  p2 = ggplot(dt,aes(x = FracCombinedAdherence, y = FracPrevented, colour = TestType)) + geom_line() +
+  dt[,FracTransmitSymptoms := as.factor(FracTransmitSymptoms)]
+  
+  p2 = ggplot(dt,aes(x = FracCombinedAdherence, y = FracPrevented, colour = TestType)) +  geom_line(aes( linetype = FracTransmitSymptoms))+
     xlab("Fraction Adherence") + ylab("Fraction Transmissions Prevented") + theme( legend.position = c(0.1, 0.85)) +
     ylim(0,1) + #scale_y_continuous(breaks = seq(0,1, by = 0.2), labels = paste0(signif(100*seq(0,1, by = 0.2), 1), "%")) + 
     guides(colour=guide_legend(title="Test Type"))
@@ -741,21 +868,28 @@ generateCovidFracPrevented = function(params){
   covidParams["logLimitOfDetection"] = typicalPcrLogLod
   covidParams["testDelay"] = 8
   # iterate over 3 adherence scenarios then iterate over test frequency (for fast PCR)
-  dt = rbindlist(llply(c(0.1, 0.5, 0.9), function(fracAdherence){
-    
-    dt = rbindlist(llply(floor(exp(seq(log(12), log(24*16), length.out = 80))), function(testPeriod){
-      newParams = copy(covidParams)
+  
+  dt = rbindlist(llply(c(0,1), function(fracTransmitSymptoms){
+    dt = rbindlist(llply(c(0.1, 0.5, 0.9), function(fracAdherence){
       
-      newParams["testPeriod"] = testPeriod
-      
-      fracPrevented = fracAfterPositive(newParams)*fracAdherence
-      
-      return(data.table(TestType = testScenario$Label, TestPeriod = testPeriod, FracPrevented = fracPrevented, FracCombinedAdherence = fracAdherence))
+      dt = rbindlist(llply(floor(exp(seq(log(12), log(24*16), length.out = 80))), function(testPeriod){
+        newParams = copy(covidParams)
+        
+        newParams["testPeriod"] = testPeriod
+        newParams["fracTransmitSymptoms"] = fracTransmitSymptoms
+        
+        fracPrevented = fracAfterPositive(newParams)*fracAdherence
+        
+        return(data.table(TestType = testScenario$Label, TestPeriod = testPeriod, FracPrevented = fracPrevented, FracCombinedAdherence = fracAdherence, FracTransmitSymptoms = fracTransmitSymptoms))
+      }))
+      return(dt)
     }))
     return(dt)
   }))
   
-  p1 = ggplot(dt,aes(x = 24/TestPeriod, y = FracPrevented, colour = as.factor(FracCombinedAdherence))) + geom_line()+
+  dt[,FracTransmitSymptoms := as.factor(FracTransmitSymptoms)]
+  
+  p1 = ggplot(dt,aes(x = 24/TestPeriod, y = FracPrevented, colour = as.factor(FracCombinedAdherence) )) + geom_line(aes( linetype = FracTransmitSymptoms))+
     xlab("Tests Per Day") + ylab("Fraction Transmissions Prevented") + ylim(0,1)+
     guides(colour=guide_legend(title="Fraction Adherence")) + 
     scale_x_log10(breaks = c(1/16, 1/8, 1/4, 0.5, 1,2), labels= c("1/16","1/8", "1/4", "1/2", "1", "2")) + 
@@ -783,7 +917,8 @@ generateReportFigures = function(folder){
   
   defaultParams = c( maskEffect = 0,precision = 0.25, contactsPerHour = 13/24, maxProbTransmitPerExposure = 0.3,
                      relativeDeclineSlope = 1, maxTimeAfterPeak = 24*30, initialLogLoad = typicalInitalLogLoad, 
-                     probTransmitMid = infectiousMid, infectHParam = typicalInfectH,  timeFromPeakToSymptoms = -24,fracTransmitSymptoms = 0.0)
+                     probTransmitMid = infectiousMid, infectHParam = typicalInfectH, timeFromPeakToSymptoms = 0, fracTransmitSymptoms = 0.5 ,
+                     maxSensitivity = 0.995, testSlope = 6)
   
   p = plotInfectiousness(defaultParams)
   ggsave(paste0(folder,"figures/infectiousness.pdf"), p, width = 2.5, height = 2.5,device = "pdf")
@@ -793,11 +928,12 @@ generateReportFigures = function(folder){
   
   
   
-  plots = plot3Trajectories(combineParams(defaultParams , c(logLimitOfDetection = 2)))
+  plots = plot3Trajectories(2.75, 5*24, combineParams( defaultParams, c(logLimitOfDetection = 2, timeFromPeakToSymptoms = 0, fracTransmitSymptoms = 0.5)))
   ggsave(paste0(folder,"figures/viralLoad.pdf"), plots[[1]], width = 4, height = 4,device = "pdf")
   ggsave(paste0(folder,"figures/testSensitivityVsTime.pdf"), plots[[2]], width = 4, height = 4,device = "pdf")
   ggsave(paste0(folder,"figures/infectiousnessVsTime.pdf"), plots[[3]], width = 4, height = 4,device = "pdf")
   
+
   
   #figure 3 - 100 times less for the probTransmitMid
   p = plotFracReduction(testPeriods = 24*c(1), timesToPeak = 24*c(3,6,9), n = 20, showPooled = FALSE,combineParams(defaultParams , 
@@ -839,8 +975,7 @@ generateReportFigures = function(folder){
   
   
   
-  
-  p = plotMultiplePreventedTransmissions(combineParams(defaultParams , c( testDelay = 8, fracIso = 0.9, fracTest = 0.9, logPeakLoad = 10,timeToPeak = 96, timeFromPeakTo0 = 96)))
+  p = plotMultiplePreventedTransmissions(combineParams(defaultParams , c( testDelay = 8, fracIso = 0.9, fracTest = 0.9, logLimitOfDetection = 2, timeToPeak = 96, relativeDeclineSlope = 20)))
   ggsave(paste0(folder,"figures/preventedTransmissions.pdf"), p, width = 10, height = 6,device = "pdf")
   
  # plot importation cost with vertical lines for UK and Australia?
@@ -849,8 +984,20 @@ generateReportFigures = function(folder){
  
  # ? plotOutbreak()
  
- p = generateCovidFracPrevented(combineParams(defaultParams, c(precision = 0.6, fracTransmitSymptoms = 0.0)))
+ p = generateCovidFracPrevented(combineParams(defaultParams, c(precision = 0.6,  timeFromPeakToSymptoms = 0.0)))
  ggsave(paste0(folder,"figures/covidPreventedTransmissions.pdf"), p, width = 10, height = 6,device = "pdf")
+ 
+ p = generateSymptomsControllabilityFigure(24*c(1,3), c(1.0, 0.5), combineParams(defaultParams , c( testDelay = 8, fracIso = 0.95, fracTest = 0.95, timeFromPeakToSymptoms  = 0,  logLimitOfDetection = typicalPcrLogLod))) 
+ 
+ p = generateSymptomsControllabilityFigure(24*c(1,3), c(1.0, 0.25), combineParams(defaultParams , c( testDelay = 8, fracIso = 0.95, fracTest = 0.95, timeFromPeakToSymptoms  = -24,  logLimitOfDetection = typicalPcrLogLod))) 
+ 
+ 
+ p = plotShapeSensitivity( combineParams(defaultParams , c(timeFromPeakToSymptoms = 0, fracTransmitSymptoms = 1.0, testPeriod = 24, testDelay = 8, logLimitOfDetection = typicalPcrLogLod,precision = 2 )))
+ ggsave(paste0(folder,"figures/viralLoadShapeFastTest.pdf"), p, width = 10, height = 10,device = "pdf")
+ 
+ p = plotShapeSensitivity( combineParams(defaultParams , c(timeFromPeakToSymptoms = 0, fracTransmitSymptoms = 1.0, testPeriod = 48, testDelay = 24, logLimitOfDetection = typicalPcrLogLod, precision = 2 )))
+ ggsave(paste0(folder,"figures/viralLoadShapeSlowTest.pdf"), p, width = 10, height = 10,device = "pdf")
+ 
 }
 
 
