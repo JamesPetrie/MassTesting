@@ -1,7 +1,8 @@
 
 #test file for MT & CT
-Rcpp::sourceCpp("/Users/orayasrim/Documents/MassTest/MassTesting/ShinyApp/ViralLoad.cpp")
-source("/Users/orayasrim/Documents/MassTest/MassTesting/ShinyApp/buildFigures.R")
+folder =  "~/MassTesting/ShinyApp/" # "/Users/orayasrim/Documents/MassTest/MassTesting/ShinyApp/"
+Rcpp::sourceCpp(paste0(folder, "ViralLoad.cpp"))
+source(paste0(folder, "buildFigures.R"))
 library(boot)
 #plots (daily testing) another will have testing every 4 days for example ( noraml test period and outbreak test period)
 #default 1 day and additional testing with 0 or 2 days ( tracing delay)
@@ -395,6 +396,55 @@ b <- ggplot(disease_dt_TEST) +
 ggsave("/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_infection_peak_2.pdf", b, width = 7, height = 4,device = "pdf")
 
 
+
+
+generateTestPeriodDt = function(numOutbreaks = 100, endDay = 120, maxSize = 300, probTestConditionalSymptoms = 0.80){
+  timepeak_list <- c(2,4,6,8,10,12)*24
+  test_period_list <- floor(24*2^seq(0, 5, length.out = 12))
+  #fractionTraced_list <- seq(0, 0.9, by = 0.1)
+  fractionTraced_list <- c(0, 0.5,0.9)
+  tracingDelay = 24
+  testDelay = 10
+  fracIso = 0.9
+  fracTest = 0.9
+  disease_name = "any"
+  diseaseDt = rbindlist(llply(fractionTraced_list, function(fractionTraced){
+    rbindlist(llply(test_period_list, function(testPeriod){
+      rbindlist(llply(timepeak_list, function(time_to_peak){
+        probSymptoms = 0.50 #adjust scenario
+        probTestSymptoms = probSymptoms*probTestConditionalSymptoms #adjust based on disease
+        timeFromPeaktoSymptoms = -1*24 #adjust based on disease
+        timeToPeak = time_to_peak #adjust based on disease
+        R0 = 2 # adjust based on disease
+        dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak, timeFromPeaktoSymptoms, 
+                             probTestSymptoms, testPeriod, tracingDelay,fractionTraced, testDelay, fracIso, fracTest )
+        return(dt)
+      }))
+    }))
+  }))
+  return(diseaseDt)
+}
+
+
+testperiod_dt = generateTestPeriodDt(numOutbreaks = 20, probTestConditionalSymptoms = 0.5)
+c <- ggplot(testperiod_dt) +
+  aes(
+    x = 24/testPeriod,
+    y = Re,
+    colour = factor(FractionTraced),
+    group = FractionTraced,
+    fill = factor(FractionTraced)
+  ) +
+  geom_line() + scale_colour_manual(values = colorRampPalette(RColorBrewer::brewer.pal(8, "Accent"))(11), name = "Proportion of Contacts Traced") + 
+  labs(
+    x = "Time from Infection to Peak Viral Load (days)",
+    y = "Effective Reproduction Number (Re)",
+    title = "Re vs Time from Infection to Peak Viral Load"
+  ) + geom_ribbon( aes(ymin =  minBound,ymax = maxBound),alpha = 0.09, colour = NA )+ 
+  theme_minimal() + theme(legend.title=element_text(size=7),legend.key.size = unit(0.4, 'cm'),legend.text = element_text(size=7))+
+  theme_minimal() + theme(legend.title=element_text(size=7),legend.key.size = unit(0.4, 'cm'),legend.text = element_text(size=7)) + 
+  facet_wrap(~factor(paste0("Days to peak viral load: " , timePeak/24)))+ 
+  scale_x_log10(breaks = c(1/32, 1/16, 1/8, 1/4, 1/2, 1), labels= c("1/32","1/16", "1/8", "1/4", "1/2", "1"))
 
 # p <- ggplot(data = dt_final[Disease == "1918 Influenza"]) + geom_line(aes(x = FractionTraced, y = Re),colour = "#00A2FF", size = 0.5)+  theme_minimal() + labs(y = "Effective Reproduction Number (Re)", x = "Proportion of Contacts Traced", title = "Re vs Proportion of Contacts Traced for 1918 Influenza Pandemic")
 # 

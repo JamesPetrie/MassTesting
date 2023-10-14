@@ -316,7 +316,7 @@ Rcpp::DataFrame branchingModel(int endDay, int maxSize, const NumericVector para
   int testPeriod = params["normalTestPeriod"];
 
   // add 1 initial cases
-  for(int i =0;i<1;i++){ // 0 is the hour they were infected, -1 is the index 
+  for(int i =0;i<10;i++){ // 0 is the hour they were infected, -1 is the index 
     Case initialCase = Case(0, testPeriod, -1,  params);
     cases.push_back(initialCase); //create one case and add to the list 
   }

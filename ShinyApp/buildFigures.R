@@ -8,10 +8,11 @@ require(Rcpp)
 require(plyr)
 require(tidyr)
 
+folder =  "~/MassTesting/ShinyApp/" # "/Users/orayasrim/Documents/MassTest/MassTesting/ShinyApp/"
 
-source("/Users/orayasrim/Documents/MassTest/MassTesting/ShinyApp/ViralLoad.R")
+source(paste0(folder, "ViralLoad.R"))
 #source("~/MassTesting/outbreakBranching.R")
-Rcpp::sourceCpp("/Users/orayasrim/Documents/MassTest/MassTesting/ShinyApp/ViralLoad.cpp")
+Rcpp::sourceCpp(paste0(folder, "ViralLoad.cpp"))
 
 theme_set(theme(panel.grid.major.y = element_blank(),panel.grid.minor.y = element_blank()) + theme(legend.background = element_rect(fill = "white")) + theme_half_open() + background_grid()  + 
             theme(text = element_text(size=20), axis.text = element_text(size=20)))
