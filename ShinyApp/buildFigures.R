@@ -361,7 +361,7 @@ plotTestSensitivity = function(params){
   dt[ ,ProbPositive :=probPositive(ViralLoad, params), by = ViralLoad ]
   
   p = ggplot(dt , aes(x = ViralLoad, y = ProbPositive)) + geom_line() + scale_x_log10(labels = trans_format("log10", math_format(10^.x))) + 
-    xlab("Viral Load (copies/ml)") + ylab("Test Sensitivity") + 
+    xlab("Viral Load (copies/ml)") + ylab("Test Sensitivity") + ylim(0, 1) +
     theme(text = element_text(size=12), axis.text = element_text(size=12)) 
   #+ labs(title="Test Sensitivity vs. Viral Load")
   return(p)
