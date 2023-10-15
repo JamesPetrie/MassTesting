@@ -1,6 +1,6 @@
 
 #test file for MT & CT
-folder =  "/Users/orayasrim/Documents/MassTest/MassTesting/ShinyApp/" #"~/MassTesting/ShinyApp/" # 
+folder =  "~/MassTesting/ShinyApp/" # "/Users/orayasrim/Documents/MassTest/MassTesting/ShinyApp/" #
 Rcpp::sourceCpp(paste0(folder, "ViralLoad.cpp"))
 source(paste0(folder, "buildFigures.R"))
 library(boot)
@@ -104,123 +104,6 @@ timepeak_list <- seq(1,12,2)
 prob_test_list <- c(0.10, 0.50, 0.80, 0.90) 
 frac_iso_list <- c(.10,.50,.90) #remove 100% for figure B4
 
-dt_final = rbindlist(llply(timepeak_list, function(time_peak){
-  
-  rbindlist(llply(prob_test_list, function(prob_test){
-
-    rbindlist(llply(frac_iso_list, function(frac_iso){
-    
-
-    rbindlist(llply(test_period_list, function(test_period){
-    
-    normalTestPeriod = test_period
-    outbreakTestPeriod = test_period
-    
-    rbindlist(llply(disease_list, function(disease_name){
-      #normalTestPeriod = 6 #adjust scenario
-      #outbreakTestPeriod = 6 #adjust scenario
-      tracingDelay = 24 #adjust scenario
-      #fractionTraced = 0.1 #adjust this one
-      
-      contactsPerDay = 13
-      testDelay = 10
-      #fracIso = 1
-      fracIso = frac_iso
-      fracTest = 0.90
-      maxDaysAfterPeak = 20
-      maskEffect = 0
-
-      
-      
-      if(disease_name == "1918 Influenza"){
-        #influenza
-        #probTest = .50 #adjust scenario & disease
-        probTest = prob_test #adjust scenario & disease
-        probDetectSymptoms = 0.693*probTest #adjust based on disease
-        timeFromPeaktoSymptoms = -2 #adjust based on disease
-        daysToPeak = 3 #adjust based on disease
-        R0 = 2.0 #adjust based on disease
-      }
-      else if(disease_name == "SARS-CoV-1") {
-        #SARS-CoV
-        #probTest = .80 #adjust scenario
-        probTest = prob_test #adjust scenario
-        probDetectSymptoms = 0.925*probTest #adjust based on disease
-        timeFromPeaktoSymptoms = -5 #adjust based on disease
-        daysToPeak = 7 #adjust based on disease
-        R0 = 2.4 # adjust based on disease
-      }else{
-        #test with other values of time to peak
-        probTest = .80 #adjust scenario
-        probDetectSymptoms = 0.7*probTest #adjust based on disease
-        timeFromPeaktoSymptoms = -1 #adjust based on disease
-        daysToPeak = time_peak #adjust based on disease
-        R0 = 2 # adjust based on disease
-      }
-      
-      numOutbreaks = 800
-      #numOutbreaks = 120
-      endDay = 120
-      maxSize = 300
-      
-      y = rbindlist(llply(fractionTraced_list, function(fractionTraced){
-        params = c(
-          normalTestPeriod = normalTestPeriod*24  ,
-          outbreakTestPeriod = outbreakTestPeriod*24 ,
-          ContactTracingDelay = tracingDelay ,
-          ProbTracedGivenInfectorDetected = fractionTraced,
-          ProbTestSymptoms = probDetectSymptoms, # todo: delete
-          ProbDetectSymptoms = probDetectSymptoms,
-          timeFromPeakToSymptoms = timeFromPeaktoSymptoms,
-          timeToPeak = daysToPeak*24,
-          maxTimeAfterPeak= 24*30,
-          timeFromPeakTo0 = 24*5,
-          contactsPerHour = contactsPerDay/24, testDelay = testDelay, fracIso = fracIso, fracTest = fracTest, 
-          precision = 0.2, maxProbTransmitPerExposure = maxProbTransmitPerExposure,
-          relativeDeclineSlope = relativeDeclineSlope, maxTimeAfterPeak = 24*maxDaysAfterPeak, 
-          maskEffect = maskEffect, minLogPCRViralLoad = minLogPCRViralLoad, initialLogLoad = initialLogLoad, probTransmitMid = 8.9e6,logLimitOfDetection = 2.5, testPeriod = 1,fracQuar = 1 
-          ,infectHParam = 0.51)
-        
-      
-        #output final dt 
-        params["logPeakLoad"] = computePeakViralLoad(params["timeToPeak"], targetR0 =R0, params)
-        
-        caseData = rbindlist(llply(1:numOutbreaks, function(i){
-          dt = data.table(branchingModel(endDay = endDay, maxSize = maxSize, params)) 
-          dt[,RunNumber := i]
-          
-          return(dt)
-        }))
-        
-        re_filt <- caseData[hourNotInfectious<SimulationEndHour]
-        #for bootstrapping
-        test <- data.frame(re_filt$NumInfected)
-        bo <- boot(test[, "re_filt.NumInfected", drop = FALSE], statistic=meanfun, R=1000)
-        
-        result <- boot.ci(bo, conf=0.95, type = c("basic"))
-        
-        lowerBound <- result$basic[1,4]
-        
-        upperBound <- result$basic[1,5]
-        #end bootstrapping
-        
-        re <- mean(re_filt$NumInfected)
-        
-        x = data.table(Re = re, Disease = disease_name, FractionTraced = fractionTraced, R0 = R0, testPeriod = test_period,timePeak = time_peak, minBound = lowerBound, maxBound = upperBound,probTestPositive = prob_test,fractionIso = frac_iso)
-        #x = data.table(Re = re, Disease = disease_name, FractionTraced = fractionTraced, R0 = R0, testPeriod = test_period, probTestPositive = prob_test)
-        #x = data.table(Re = re, Disease = disease_name, FractionTraced = fractionTraced, R0 = R0, testPeriod = test_period, fractionIso = frac_iso)
-        
-        return(x)
-      }))
-    }))
-  }))
-}))
-}))
-}))
-
-
-
-
 runAndComputeRe = function(numOutbreaks, endDay, maxSize, diseaseName, R0, timeToPeak, timeFromPeaktoSymptoms,  probTestSymptoms, 
                            testPeriod, tracingDelay, fractionTraced, testDelay, fracIso, fracTest ){
   params = c(
@@ -277,6 +160,10 @@ runAndComputeRe = function(numOutbreaks, endDay, maxSize, diseaseName, R0, timeT
   
   return(x)
 }
+
+
+#runAndComputeRe(numOutbreaks = 100, endDay = 300, maxSize = 300, diseaseName = "Example", R0 = 3, timeToPeak = 24*5, timeFromPeaktoSymptoms = 0,  probTestSymptoms = 0.5, 
+                testPeriod = 100000*24, tracingDelay = 0, fractionTraced = 0, testDelay = 500, fracIso = 0.9, fracTest = 0)
 
 
 generateDiseaseDt = function(numOutbreaks = 2000, endDay = 120, maxSize = 300, probTestConditionalSymptomsInfluenza, probTestConditionalSymptomsSars,probTestConditionalSymptomsSars2 ){

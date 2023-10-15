@@ -8,7 +8,7 @@ require(Rcpp)
 require(plyr)
 require(tidyr)
 
-folder =  "/Users/orayasrim/Documents/MassTest/MassTesting/ShinyApp/" # "~/MassTesting/ShinyApp/" # 
+folder =   "~/MassTesting/ShinyApp/" # "/Users/orayasrim/Documents/MassTest/MassTesting/ShinyApp/" #
 
 source(paste0(folder, "ViralLoad.R"))
 #source("~/MassTesting/outbreakBranching.R")

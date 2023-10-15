@@ -3,7 +3,7 @@ require(pracma)
 require(plyr)
 
 #require(pracma)
-folder =  "/Users/orayasrim/Documents/MassTest/MassTesting/ShinyApp/" # "~/MassTesting/ShinyApp/" # 
+folder = "~/MassTesting/ShinyApp/" #  "/Users/orayasrim/Documents/MassTest/MassTesting/ShinyApp/" # 
 Rcpp::sourceCpp(paste0(folder, "ViralLoad.cpp"))
 # 
 # 
