@@ -261,8 +261,8 @@ struct Case { // for a case we want to to know when they were infected, earliest
         getTested(hour, params); // you get tested 
         }}
 
-      if(hour == hourSymptoms){ //
-        if(hour - hourLastTested > 10 ){ // can set this to something else define later 
+      if(hour >= hourSymptoms){ //
+        if(hour - hourLastTested > 24 ){ // can set this to something else define later 
           getTested(hour, params); // you get tested 
         }}
       

@@ -94,14 +94,14 @@ meanfun <- function(data, i){
 
 test_period_list <- c(1,2,4,8,16)
 
-disease_list <- c("1918 Influenza", "SARS-CoV-1","test")
+disease_list <- c("1918 Influenza", "SARS-CoV-1","SARS-CoV-2")
 #disease_list <- c("test")
 
 fractionTraced_list <- seq(0, 0.9, by = 0.1)
 
 timepeak_list <- seq(1,12,2)
 prob_test_list <- c(0.10, 0.50, 0.80, 0.90) 
-frac_iso_list <- c(.10,.50,.90, 1.0) #remove 100% for figure B4
+frac_iso_list <- c(.10,.50,.90) #remove 100% for figure B4
 
 dt_final = rbindlist(llply(timepeak_list, function(time_peak){
   
@@ -249,6 +249,7 @@ runAndComputeRe = function(numOutbreaks, endDay, maxSize, diseaseName, R0, timeT
   params["logPeakLoad"] = computePeakViralLoad(params["timeToPeak"], targetR0 =R0, params)
   
   caseData = rbindlist(llply(1:numOutbreaks, function(i){
+    #browser()
     dt = data.table(branchingModel(endDay = endDay, maxSize = maxSize, params)) 
     dt[,RunNumber := i]
     
@@ -277,21 +278,22 @@ runAndComputeRe = function(numOutbreaks, endDay, maxSize, diseaseName, R0, timeT
 }
 
 
-generateDiseaseDt = function(numOutbreaks = 100, endDay = 120, maxSize = 300, probTestConditionalSymptomsInfluenza, probTestConditionalSymptomsSars){
+generateDiseaseDt = function(numOutbreaks = 2000, endDay = 120, maxSize = 300, probTestConditionalSymptomsInfluenza, probTestConditionalSymptomsSars,probTestConditionalSymptomsSars2 ){
   test_period_list <- c(1,2,4,8,16)*24
   fractionTraced_list <- seq(0, 0.9, by = 0.1)
   tracingDelay = 24
   testDelay = 10
-  fracIso = 0.9
+  #fracIso = 0.9
+  fracIso = 0.8
   fracTest = 0.9
   diseaseDt = rbindlist(llply(fractionTraced_list, function(fractionTraced){
     rbindlist(llply(test_period_list, function(testPeriod){
       rbindlist(llply(disease_list, function(disease_name){
         if(disease_name == "1918 Influenza"){
           probSymptoms = 0.693
-          probTestSymptoms = probSymptoms*probTestConditionalSymptomsInfluenza #adjust based on disease
-          timeFromPeaktoSymptoms = -1*24  #-2*24 #adjust based on disease
-          timeToPeak = 3*24 #adjust based on disease
+          probTestSymptoms =   probSymptoms*probTestConditionalSymptomsInfluenza #adjust based on disease
+          timeFromPeaktoSymptoms = -2*24  #-2*24 #adjust based on disease
+          timeToPeak = 4*24 #adjust based on disease
           R0 = 2.0 #adjust based on disease
           dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak, timeFromPeaktoSymptoms, 
                                probTestSymptoms, testPeriod, tracingDelay,fractionTraced, testDelay, fracIso, fracTest )
@@ -302,12 +304,23 @@ generateDiseaseDt = function(numOutbreaks = 100, endDay = 120, maxSize = 300, pr
         else if(disease_name == "SARS-CoV-1") {
           probSymptoms = 0.925
           probTestSymptoms = probSymptoms*probTestConditionalSymptomsSars #adjust based on disease
-          timeFromPeaktoSymptoms = -2*24 # -5*24 #adjust based on disease
-          timeToPeak = 7*24 #adjust based on disease
+          timeFromPeaktoSymptoms = -6*24 #adjust based on disease
+          timeToPeak = 10.5*24 #adjust based on disease
           R0 = 2.4 #adjust based on disease
           dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak, timeFromPeaktoSymptoms, 
                                probTestSymptoms, testPeriod, tracingDelay,fractionTraced, testDelay, fracIso, fracTest )
           dt[, probTestConditionalSymptoms := probTestConditionalSymptomsSars]
+          return(dt)
+        }
+        else if(disease_name == "SARS-CoV-2") {
+          probSymptoms = 0.80 
+          probTestSymptoms = probSymptoms*probTestConditionalSymptomsSars2 #adjust based on disease #find prob test conditional same as influenza 
+          timeFromPeaktoSymptoms = -0*24 #adjust based on disease
+          timeToPeak = 5*24 #adjust based on disease
+          R0 = 2.5 #adjust based on disease
+          dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak, timeFromPeaktoSymptoms, 
+                               probTestSymptoms, testPeriod, tracingDelay,fractionTraced, testDelay, fracIso, fracTest )
+          dt[, probTestConditionalSymptoms := probTestConditionalSymptomsSars2]
           return(dt)
         }
       }))
@@ -317,33 +330,90 @@ generateDiseaseDt = function(numOutbreaks = 100, endDay = 120, maxSize = 300, pr
 }
 
 # #figure 2
-disease_dt <- generateDiseaseDt(probTestConditionalSymptomsInfluenza = 0.5, probTestConditionalSymptomsSars = 0.8)
+disease_dt <- generateDiseaseDt(numOutbreaks = 2000, probTestConditionalSymptomsInfluenza = 0.2, probTestConditionalSymptomsSars = 0.8,probTestConditionalSymptomsSars2 = 0.2)
+disease_dt[, testPeriodDays := testPeriod/24]
 
-a <- ggplot(disease_dt) +
-  aes(
+a <- ggplot(disease_dt) + aes(
     x = FractionTraced,
     y = Re,
-    colour = factor(testPeriod),
-    group = testPeriod,
+    colour = factor(testPeriodDays),
+    group = testPeriodDays,
     ymin =  minBound,
     ymax = maxBound
     
-  ) + 
-  geom_line(aes(colour = factor(testPeriod)))  +
+  ) + geom_line(aes(colour = factor(testPeriodDays)))  +  scale_colour_manual(values = colorRampPalette(RColorBrewer::brewer.pal(8, "Set2"))(11), name = "Test Period (days)") +
+  scale_fill_manual(values = colorRampPalette(RColorBrewer::brewer.pal(8, "Set2"))(11), name = "Test Period (days)") +
   labs(
     x = "Proportion of Contacts Traced",
     y = "Effective Reproduction Number (Re)",
-    title = "Re vs Proportion of Contacts Traced"
-  ) + geom_ribbon( aes(ymin =  minBound,ymax = maxBound,fill = factor(testPeriod) ),alpha = 0.09, colour = NA )+ 
+    title = ""
+  ) + geom_ribbon( aes(ymin =  minBound,ymax = maxBound,fill = factor(testPeriodDays) ),alpha = 0.3, colour = NA )+ 
   theme_minimal() + theme(legend.title=element_text(size=7),legend.key.size = unit(0.4, 'cm'),legend.text = element_text(size=7))+
-  scale_fill_discrete(name = "Test Period (hours)")+ scale_colour_discrete(name = "Test Period (hours)")+
-  facet_wrap(vars(Disease))
+  facet_wrap(vars(Disease)) +
+  guides(color = guide_legend(reverse=TRUE), fill = guide_legend(reverse=TRUE) )
 
 ggsave("/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_test_period_2.pdf", a, width = 7, height = 4,device = "pdf")
+write.csv(disease_dt, "/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_test_period_2.csv", row.names=TRUE)
 
-generateInfectiontoPeakDt = function(numOutbreaks = 100, endDay = 120, maxSize = 300, probTestConditionalSymptoms = 0.80){
-  timepeak_list <- seq(1,12,2)*24
-  test_period_list <- c(2,4,8)*24
+# generateInfectiontoPeakDt = function(numOutbreaks = 1000, endDay = 120, maxSize = 300, probTestConditionalSymptoms = 0.5){
+#   timepeak_list <- seq(1,12,1)*24
+#   test_period_list <-  c(2,4,8)*24
+#   #fractionTraced_list <- seq(0, 0.9, by = 0.1)
+#   fractionTraced_list <- c(0, 0.5,0.9)
+#   tracingDelay = 24
+#   testDelay = 10
+#   fracIso = 0.9
+#   fracTest = 0.9
+#   disease_name = "any"
+#   diseaseDt = rbindlist(llply(fractionTraced_list, function(fractionTraced){
+#     rbindlist(llply(test_period_list, function(testPeriod){
+#       rbindlist(llply(timepeak_list, function(time_to_peak){
+#         probSymptoms = 0.5 # todo: fix 0.70 #adjust scenario
+#         probTestSymptoms = probSymptoms*probTestConditionalSymptoms #adjust based on disease
+#         timeFromPeaktoSymptoms = -1*24 #adjust based on disease
+#         timeToPeak = time_to_peak #adjust based on disease
+#         R0 = 2 # adjust based on disease
+#         dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak, timeFromPeaktoSymptoms, 
+#                              probTestSymptoms, testPeriod, tracingDelay,fractionTraced, testDelay, fracIso, fracTest )
+#         return(dt)
+#       }))
+#     }))
+#   }))
+#   return(diseaseDt)
+# }
+# 
+# disease_dt <- generateInfectiontoPeakDt()
+# disease_dt_TEST <- disease_dt[ FractionTraced == 0.5 | FractionTraced == 0 | FractionTraced == 0.9 ,]
+# disease_dt_TEST[, testPeriod := as.character(testPeriod)][testPeriod == "48", testPeriod := "Test Period: 48 hr"]
+# disease_dt_TEST[, testPeriod := as.character(testPeriod)][testPeriod == "96", testPeriod := "Test Period: 96 hr"]
+# disease_dt_TEST[, testPeriod := as.character(testPeriod)][testPeriod == "192", testPeriod := "Test Period: 192 hr"]
+# 
+# #figure 3 
+# b <- ggplot(disease_dt_TEST) +
+#   aes(
+#     x = timePeak/24,
+#     y = Re,
+#     colour = factor(FractionTraced),
+#     group = FractionTraced,
+#     fill = factor(FractionTraced)
+#   ) +
+#   geom_line(aes(colour = factor(FractionTraced))) + scale_colour_manual(values = colorRampPalette(RColorBrewer::brewer.pal(8, "Accent"))(11), name = "Proportion of Contacts Traced") + 
+#   scale_fill_manual(values = colorRampPalette(RColorBrewer::brewer.pal(8, "Accent"))(11), name = "Proportion of Contacts Traced")+
+#   labs(
+#     x = "Time from Infection to Peak Viral Load (days)",
+#     y = "Effective Reproduction Number (Re)",
+#     title = "Re vs Time from Infection to Peak Viral Load"
+#   ) +
+#   theme_minimal() +
+#   geom_ribbon( aes(ymin =  minBound,ymax = maxBound,fill = factor(FractionTraced) ),alpha = 0.3, colour = NA )+ theme(legend.title=element_text(size=7),legend.key.size = unit(0.4, 'cm'),legend.text = element_text(size=7)) + 
+#   facet_wrap(~factor(testPeriod, levels=c("Test Period: 48 hr", "Test Period: 96 hr", "Test Period: 192 hr")))
+# 
+# ggsave("/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_infection_peak_2.pdf", b, width = 7, height = 4,device = "pdf")
+
+#figure 3 edited 
+generateTestPeriodDt = function(numOutbreaks = 2000, endDay = 120, maxSize = 300, probTestConditionalSymptoms = 0.80){
+  timepeak_list <- c(2,4,6,8,10,12)*24
+  test_period_list <- floor(24*2^seq(0, 5, length.out = 12))
   #fractionTraced_list <- seq(0, 0.9, by = 0.1)
   fractionTraced_list <- c(0, 0.5,0.9)
   tracingDelay = 24
@@ -354,7 +424,7 @@ generateInfectiontoPeakDt = function(numOutbreaks = 100, endDay = 120, maxSize =
   diseaseDt = rbindlist(llply(fractionTraced_list, function(fractionTraced){
     rbindlist(llply(test_period_list, function(testPeriod){
       rbindlist(llply(timepeak_list, function(time_to_peak){
-        probSymptoms = 0.70 #adjust scenario
+        probSymptoms = 0.50 #adjust scenario
         probTestSymptoms = probSymptoms*probTestConditionalSymptoms #adjust based on disease
         timeFromPeaktoSymptoms = -1*24 #adjust based on disease
         timeToPeak = time_to_peak #adjust based on disease
@@ -368,31 +438,187 @@ generateInfectiontoPeakDt = function(numOutbreaks = 100, endDay = 120, maxSize =
   return(diseaseDt)
 }
 
-disease_dt <- generateInfectiontoPeakDt()
-disease_dt_TEST <- disease_dt[ FractionTraced == 0.5 | FractionTraced == 0 | FractionTraced == 0.9 ,]
-disease_dt_TEST[, testPeriod := as.character(testPeriod)][testPeriod == "48", testPeriod := "Test Period: 48 hr"]
-disease_dt_TEST[, testPeriod := as.character(testPeriod)][testPeriod == "96", testPeriod := "Test Period: 96 hr"]
-disease_dt_TEST[, testPeriod := as.character(testPeriod)][testPeriod == "192", testPeriod := "Test Period: 192 hr"]
 
-#figure 3 
-b <- ggplot(disease_dt_TEST) +
+testperiod_dt = generateTestPeriodDt(numOutbreaks = 2000, probTestConditionalSymptoms = 0.5)
+c <- ggplot(testperiod_dt) +
   aes(
-    x = timePeak/24,
+    x = 24/testPeriod,
     y = Re,
     colour = factor(FractionTraced),
     group = FractionTraced,
     fill = factor(FractionTraced)
   ) +
-  geom_line() + scale_colour_manual(values = colorRampPalette(RColorBrewer::brewer.pal(8, "Accent"))(11), name = "Proportion of Contacts Traced") + 
+  geom_line() + scale_colour_manual(values = colorRampPalette(RColorBrewer::brewer.pal(8, "Accent"))(11), name = "Proportion of\nContacts Traced") + 
+  scale_fill_manual(values = colorRampPalette(RColorBrewer::brewer.pal(8, "Accent"))(11), name = "Proportion of\nContacts Traced") + 
   labs(
-    x = "Time from Infection to Peak Viral Load (days)",
+    x = "Tests Per Day",
     y = "Effective Reproduction Number (Re)",
-    title = "Re vs Time from Infection to Peak Viral Load"
-  ) +
+    title = ""
+  ) + geom_ribbon( aes(ymin =minBound,ymax = maxBound),alpha = 0.09, colour = NA )+ 
+  theme_minimal() + theme(legend.title=element_text(size=7),legend.key.size = unit(0.4, 'cm'),legend.text = element_text(size=7))+
   theme_minimal() + theme(legend.title=element_text(size=7),legend.key.size = unit(0.4, 'cm'),legend.text = element_text(size=7)) + 
-  facet_wrap(~factor(testPeriod, levels=c("Test Period: 48 hr", "Test Period: 96 hr", "Test Period: 192 hr")))
+  facet_wrap(~factor(paste0("Days to peak viral load: " , timePeak/24), levels=c("Days to peak viral load: 2","Days to peak viral load: 4","Days to peak viral load: 6",
+                                                                                 "Days to peak viral load: 8","Days to peak viral load: 10","Days to peak viral load: 12")))+ 
+  scale_x_log10(breaks = c(1/32, 1/16, 1/8, 1/4, 1/2, 1), labels= c("1/32","1/16", "1/8", "1/4", "1/2", "1"))
 
-ggsave("/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_infection_peak_2.pdf", b, width = 7, height = 4,device = "pdf")
+ggsave("/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_infection_peak_3.pdf", c, width = 7, height = 4,device = "pdf")
+write.csv(testperiod_dt, "/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_infection_peak_3.csv", row.names=TRUE)
+
+#figure A1: 
+disease_dt <- generateDiseaseDt(numOutbreaks = 2000, probTestConditionalSymptomsInfluenza = 0.1, probTestConditionalSymptomsSars = 0.1,probTestConditionalSymptomsSars2 = 0.1)
+disease_dt[, testPeriodDays := testPeriod/24]
+
+a1 <- ggplot(disease_dt) + aes(
+  x = FractionTraced,
+  y = Re,
+  colour = factor(testPeriodDays),
+  group = testPeriodDays,
+  ymin =  minBound,
+  ymax = maxBound
+  
+) + geom_line(aes(colour = factor(testPeriodDays)))  +  scale_colour_manual(values = colorRampPalette(RColorBrewer::brewer.pal(8, "Set2"))(11), name = "Test Period (days)") +
+  scale_fill_manual(values = colorRampPalette(RColorBrewer::brewer.pal(8, "Set2"))(11), name = "Test Period (days)") +
+  labs(
+    x = "Proportion of Contacts Traced",
+    y = "Effective Reproduction Number (Re)",
+    title = ""
+  ) + geom_ribbon( aes(ymin =  minBound,ymax = maxBound,fill = factor(testPeriodDays) ),alpha = 0.3, colour = NA )+ 
+  theme_minimal() + theme(legend.title=element_text(size=7),legend.key.size = unit(0.4, 'cm'),legend.text = element_text(size=7))+
+  facet_wrap(vars(Disease))+
+  guides(color = guide_legend(reverse=TRUE), fill = guide_legend(reverse=TRUE) )
+
+ggsave("/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_test_period_probTest_10_2.pdf", a1, width = 7, height = 4,device = "pdf")
+write.csv(disease_dt, "/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_test_period_probTest_10_2.csv", row.names=TRUE)
+
+#figure A2:
+disease_dt <- generateDiseaseDt(numOutbreaks = 1000, probTestConditionalSymptomsInfluenza = 0.5, probTestConditionalSymptomsSars = 0.5,probTestConditionalSymptomsSars2 = 0.5)
+disease_dt[, testPeriodDays := testPeriod/24]
+
+a2 <- ggplot(disease_dt) + aes(
+  x = FractionTraced,
+  y = Re,
+  colour = factor(testPeriodDays),
+  group = testPeriodDays,
+  ymin =  minBound,
+  ymax = maxBound
+  
+) + geom_line(aes(colour = factor(testPeriodDays)))  +  scale_colour_manual(values = colorRampPalette(RColorBrewer::brewer.pal(8, "Set2"))(11), name = "Test Period (days)") +
+  scale_fill_manual(values = colorRampPalette(RColorBrewer::brewer.pal(8, "Set2"))(11), name = "Test Period (days)") +
+  labs(
+    x = "Proportion of Contacts Traced",
+    y = "Effective Reproduction Number (Re)",
+    title = ""
+  ) + geom_ribbon( aes(ymin =  minBound,ymax = maxBound,fill = factor(testPeriodDays) ),alpha = 0.3, colour = NA )+ 
+  theme_minimal() + theme(legend.title=element_text(size=7),legend.key.size = unit(0.4, 'cm'),legend.text = element_text(size=7))+
+  facet_wrap(vars(Disease))+
+  guides(color = guide_legend(reverse=TRUE), fill = guide_legend(reverse=TRUE) )
+
+ggsave("/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_test_period_probTest_50_2.pdf", a2, width = 7, height = 4,device = "pdf")
+write.csv(disease_dt, "/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_test_period_probTest_50_2.csv", row.names=TRUE)
+
+#figure A3: 
+disease_dt <- generateDiseaseDt(numOutbreaks = 1000, probTestConditionalSymptomsInfluenza = 0.9, probTestConditionalSymptomsSars = 0.9,probTestConditionalSymptomsSars2 = 0.9)
+disease_dt[, testPeriodDays := testPeriod/24]
+
+a3 <- ggplot(disease_dt) + aes(
+  x = FractionTraced,
+  y = Re,
+  colour = factor(testPeriodDays),
+  group = testPeriodDays,
+  ymin =  minBound,
+  ymax = maxBound
+  
+) + geom_line(aes(colour = factor(testPeriodDays)))  +  scale_colour_manual(values = colorRampPalette(RColorBrewer::brewer.pal(8, "Set2"))(11), name = "Test Period (days)") +
+  scale_fill_manual(values = colorRampPalette(RColorBrewer::brewer.pal(8, "Set2"))(11), name = "Test Period (days)") +
+  labs(
+    x = "Proportion of Contacts Traced",
+    y = "Effective Reproduction Number (Re)",
+    title = ""
+  ) + geom_ribbon( aes(ymin =  minBound,ymax = maxBound,fill = factor(testPeriodDays) ),alpha = 0.3, colour = NA )+ 
+  theme_minimal() + theme(legend.title=element_text(size=7),legend.key.size = unit(0.4, 'cm'),legend.text = element_text(size=7))+
+  facet_wrap(vars(Disease))+
+  guides(color = guide_legend(reverse=TRUE), fill = guide_legend(reverse=TRUE) )
+
+ggsave("/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_test_period_probTest_90_2.pdf", a3, width = 7, height = 4,device = "pdf")
+write.csv(disease_dt, "/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_test_period_probTest_90_2.csv", row.names=TRUE)
+
+#figure B4
+generateEffectiveIsoDt = function(numOutbreaks = 1000, endDay = 120, maxSize = 300, probTestConditionalSymptomsInfluenza = 0.2, probTestConditionalSymptomsSars = 0.8 ,probTestConditionalSymptomsSars2 = 0.2){
+  test_period_list <- c(2,8)*24
+  fractionTraced_list <- c(0.10, 0.50)#seq(0, 0.9, by = 0.1)
+  tracingDelay = 24
+  testDelay = 10
+  #fracIso = 0.9
+  frac_iso_list <- c(.10,.50,.90)
+  fracTest = 0.9
+  diseaseDt = rbindlist(llply(fractionTraced_list, function(fractionTraced){
+    rbindlist(llply(test_period_list, function(testPeriod){
+      rbindlist(llply(frac_iso_list, function(fracIso){
+      rbindlist(llply(disease_list, function(disease_name){
+        if(disease_name == "1918 Influenza"){
+          probSymptoms = 0.693
+          probTestSymptoms =   probSymptoms*probTestConditionalSymptomsInfluenza #adjust based on disease
+          timeFromPeaktoSymptoms = -2*24  #-2*24 #adjust based on disease
+          timeToPeak = 4*24 #adjust based on disease
+          R0 = 2.0 #adjust based on disease
+          dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak, timeFromPeaktoSymptoms, 
+                               probTestSymptoms, testPeriod, tracingDelay,fractionTraced, testDelay, fracIso, fracTest )
+          dt[, probTestConditionalSymptoms := probTestConditionalSymptomsInfluenza]
+          return(dt)
+          
+        }
+        else if(disease_name == "SARS-CoV-1") {
+          probSymptoms = 0.925
+          probTestSymptoms = probSymptoms*probTestConditionalSymptomsSars #adjust based on disease
+          timeFromPeaktoSymptoms = -6*24 #adjust based on disease
+          timeToPeak = 10.5*24 #adjust based on disease
+          R0 = 2.4 #adjust based on disease
+          dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak, timeFromPeaktoSymptoms, 
+                               probTestSymptoms, testPeriod, tracingDelay,fractionTraced, testDelay, fracIso, fracTest )
+          dt[, probTestConditionalSymptoms := probTestConditionalSymptomsSars2]
+          return(dt)
+        }
+        else if(disease_name == "SARS-CoV-2") {
+          probSymptoms = 0.80 
+          probTestSymptoms = probSymptoms*probTestConditionalSymptomsSars2 #adjust based on disease #find prob test conditional same as influenza 
+          timeFromPeaktoSymptoms = -0*24 #adjust based on disease
+          timeToPeak = 5*24 #adjust based on disease
+          R0 = 2.5 #adjust based on disease
+          dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak, timeFromPeaktoSymptoms, 
+                               probTestSymptoms, testPeriod, tracingDelay,fractionTraced, testDelay, fracIso, fracTest )
+          dt[, probTestConditionalSymptoms := probTestConditionalSymptomsSars]
+          return(dt)
+        }
+      }))
+    }))
+    }))
+  }))
+  return(diseaseDt)
+}
+testdt <- generateEffectiveIsoDt()
+d <- ggplot(data = testdt)+
+  geom_line(data = testdt[FractionTraced == 0.10 & testPeriod == 48, ], aes(y = Re, x = fractionIso, color ="#66C2A5" )) +   
+  geom_ribbon( data = testdt[FractionTraced == 0.10 & testPeriod == 48, ],aes(y = Re, x=  fractionIso,ymin =  minBound,ymax = maxBound,fill = factor(testPeriod) ),alpha = 0.3, fill = "#66C2A5" )+
+  geom_line(data = testdt[FractionTraced == 0.50 & testPeriod == 48 ,], aes(y = Re, x=  fractionIso, color ="#FC8D62"))  +
+  geom_ribbon( data = testdt[FractionTraced == 0.50 & testPeriod == 48 ,],aes(y = Re, x=  fractionIso,ymin =  minBound,ymax = maxBound,fill = factor(testPeriod) ),alpha = 0.3, fill = "#FC8D62" )+
+  geom_line(data = testdt[FractionTraced == 0.10 & testPeriod == 192 ,], aes(y = Re, x = fractionIso, color ="#8DA0CB"))  + 
+  geom_ribbon( data = testdt[FractionTraced == 0.10 & testPeriod == 192 ,],aes(y = Re, x=  fractionIso,ymin =  minBound,ymax = maxBound,fill = factor(testPeriod) ),alpha = 0.3, fill = "#8DA0CB" )+
+  geom_line(data = testdt[FractionTraced == 0.50 & testPeriod == 192 ,], aes(y = Re, x=  fractionIso, color ="#E78AC3")) +
+  geom_ribbon( data = testdt[FractionTraced == 0.50 & testPeriod == 192 ,],aes(y = Re, x=  fractionIso,ymin =  minBound,ymax = maxBound,fill = factor(testPeriod) ),alpha = 0.3, fill = "#E78AC3" )+
+  facet_wrap(~Disease)+theme_minimal() + scale_color_identity(name = "Test Period (days) & Proportion of Contacts Traced",
+                                                              breaks = c("#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3"),
+                                                              labels = c("Period: 2, Traced: 0.10", "Period: 2, Traced: 0.50", "Period: 8, Traced: 0.10", "Period: 8, Traced: 0.50"),
+                                                              guide = "legend") + scale_fill_identity(name = "Test Period (days) & Proportion of Contacts Traced",
+                                                                                                      breaks = c("#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3"),
+                                                                                                      labels = c("Period: 2, Traced: 0.10", "Period: 2, Traced: 0.50", "Period: 8, Traced: 0.10", "Period: 8, Traced: 0.50"),
+                                                                                                      guide = "legend")+
+  labs(title = "", y =("Effective Reproduction Number (Re)"), x = ("Effectiveness of Isolation/Quarantine")) + guides(color=guide_legend(title="Test Period (days) & Proportion of Contacts Traced")) + 
+  theme(legend.title=element_text(size=6),legend.key.size = unit(0.4, 'cm'),legend.text = element_text(size=6))
+
+ggsave("/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_test_prop_contacts_isolated_2.pdf", d, width = 7, height = 4,device = "pdf")
+write.csv(testdt, "/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_test_prop_contacts_isolated_2.csv", row.names=TRUE)
+
+
 
 
 
@@ -441,85 +667,85 @@ ggsave("/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_infectio
 
 #edit filter for real values probTest = .50 and 0.80 for influenza and sars 
 
-# #figure 2
-a <- ggplot(dt_final) +
-  aes(
-    x = FractionTraced,
-    y = Re,
-    colour = factor(testPeriod),
-    group = testPeriod,
-    fill = factor(testPeriod)
-  ) +
-  geom_line() + scale_colour_manual(values = colorRampPalette(RColorBrewer::brewer.pal(8, "Set2"))(11), name = "Test Period (Days)") +
-  labs(
-    x = "Proportion of Contacts Traced",
-    y = "Effective Reproduction Number (Re)",
-    title = "Re vs Proportion of Contacts Traced"
-  ) +
-  theme_minimal() + theme(legend.title=element_text(size=7),legend.key.size = unit(0.4, 'cm'),legend.text = element_text(size=7))+
-  facet_wrap(vars(Disease))
-
-ggsave("/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_test_period_2.pdf", a, width = 7, height = 4,device = "pdf")
-
-dt_filt <- dt_final[ FractionTraced == 0.5 | FractionTraced == 0 | FractionTraced == 0.9 ,]
-dt_filt <- dt_filt[testPeriod == 4,]
-
-#figure 3
-b <- ggplot(dt_filt) +
-  aes(
-    x = timePeak,
-    y = Re,
-    colour = factor(FractionTraced),
-    group = FractionTraced,
-    fill = factor(FractionTraced)
-  ) +
-  geom_line() + scale_colour_manual(values = colorRampPalette(RColorBrewer::brewer.pal(8, "Accent"))(11), name = "Proportion of Contacts Traced") + 
-  labs(
-    x = "Time from Infection to Peak Viral Load (days)",
-    y = "Effective Reproduction Number (Re)",
-    title = "Re vs Time from Infection to Peak Viral Load"
-  ) +
-  theme_minimal() + theme(legend.title=element_text(size=7),legend.key.size = unit(0.4, 'cm'),legend.text = element_text(size=7))
-
-ggsave("/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_infection_peak_2.pdf", b, width = 7, height = 4,device = "pdf")
-
-dt_10 <- dt_final[probTestPositive == 0.1,]
-dt_50 <- dt_final[probTestPositive == 0.5,]
-dt_90 <- dt_final[probTestPositive == 0.9,]
-
-#figure A1 to A3: 
-c <- ggplot(dt_90) +
-  aes(
-    x = FractionTraced,
-    y = Re,
-    colour = factor(testPeriod),
-    group = testPeriod,
-    fill = factor(testPeriod)
-  ) +
-  geom_line() + scale_colour_manual(values = colorRampPalette(RColorBrewer::brewer.pal(8, "Set2"))(11), name = "Test Period (Days)") + 
-  labs(
-    x = "Proportion of Contacts Traced",
-    y = "Effective Reproduction Number (Re)",
-    title = "Re vs Proportion of Contacts Traced"
-  ) +
-  theme_minimal() + theme(legend.title=element_text(size=7),legend.key.size = unit(0.4, 'cm'),legend.text = element_text(size=7))+ 
-  facet_wrap(vars(Disease)) 
-
-#figure B4
-ggsave("/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_test_period_probTest_90.pdf", c, width = 7, height = 4,device = "pdf")
-
-dt_tst_fraciso <- dt_final[testPeriod == 2 | testPeriod == 8,]
-dt_tst_fraciso <- dt_tst_fraciso[FractionTraced == 0.10 | FractionTraced ==.50,]
-
-d <- ggplot(data = dt_tst_fraciso)+
-  geom_line(data = dt_tst_fraciso[FractionTraced == 0.10 & testPeriod == 2, ], aes(y = Re, x = fractionIso, color ="#66C2A5" )) +
-  geom_line(data = dt_tst_fraciso[FractionTraced == 0.50 & testPeriod == 2 ,], aes(y = Re, x=  fractionIso, color ="#FC8D62"))  +
-  geom_line(data = dt_tst_fraciso[FractionTraced == 0.10 & testPeriod == 8 ,], aes(y = Re, x = fractionIso, color ="#8DA0CB"))  + 
-  geom_line(data = dt_tst_fraciso[FractionTraced == 0.50 & testPeriod == 8 ,], aes(y = Re, x=  fractionIso, color ="#E78AC3")) + 
-  facet_wrap(~Disease)+theme_minimal() + scale_color_identity(name = "Test Period (days) & Proportion of Contacts Traced",
-                                                              breaks = c("#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3"),
-                                                              labels = c("Period: 2, Traced: 0.10", "Period: 2, Traced: 0.50", "Period: 8, Traced: 0.10", "Period: 8, Traced: 0.50"),
-                                                              guide = "legend") +
-  labs(title = "Re vs Effectiveness of Isolation/Quarantine", y =("Effective Reproduction Number (Re)"), x = ("Effectiveness of Isolation/Quarantine")) + guides(color=guide_legend(title="Test Period (days) & Proportion of Contacts Traced")) + theme(legend.title=element_text(size=6),legend.key.size = unit(0.4, 'cm'),legend.text = element_text(size=6))
-
-ggsave("/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_test_prop_contacts_isolated.pdf", d, width = 7, height = 4,device = "pdf")
+# # #figure 2
+# a <- ggplot(dt_final) +
+#   aes(
+#     x = FractionTraced,
+#     y = Re,
+#     colour = factor(testPeriod),
+#     group = testPeriod,
+#     fill = factor(testPeriod)
+#   ) +
+#   geom_line() + scale_colour_manual(values = colorRampPalette(RColorBrewer::brewer.pal(8, "Set2"))(11), name = "Test Period (Days)") +
+#   labs(
+#     x = "Proportion of Contacts Traced",
+#     y = "Effective Reproduction Number (Re)",
+#     title = "Re vs Proportion of Contacts Traced"
+#   ) +
+#   theme_minimal() + theme(legend.title=element_text(size=7),legend.key.size = unit(0.4, 'cm'),legend.text = element_text(size=7))+
+#   facet_wrap(vars(Disease))
+# 
+# ggsave("/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_test_period_2.pdf", a, width = 7, height = 4,device = "pdf")
+# 
+# dt_filt <- dt_final[ FractionTraced == 0.5 | FractionTraced == 0 | FractionTraced == 0.9 ,]
+# dt_filt <- dt_filt[testPeriod == 4,]
+# 
+# #figure 3
+# b <- ggplot(dt_filt) +
+#   aes(
+#     x = timePeak,
+#     y = Re,
+#     colour = factor(FractionTraced),
+#     group = FractionTraced,
+#     fill = factor(FractionTraced)
+#   ) +
+#   geom_line() + scale_colour_manual(values = colorRampPalette(RColorBrewer::brewer.pal(8, "Accent"))(11), name = "Proportion of Contacts Traced") + 
+#   labs(
+#     x = "Time from Infection to Peak Viral Load (days)",
+#     y = "Effective Reproduction Number (Re)",
+#     title = "Re vs Time from Infection to Peak Viral Load"
+#   ) +
+#   theme_minimal() + theme(legend.title=element_text(size=7),legend.key.size = unit(0.4, 'cm'),legend.text = element_text(size=7))
+# 
+# ggsave("/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_infection_peak_2.pdf", b, width = 7, height = 4,device = "pdf")
+# 
+# dt_10 <- dt_final[probTestPositive == 0.1,]
+# dt_50 <- dt_final[probTestPositive == 0.5,]
+# dt_90 <- dt_final[probTestPositive == 0.9,]
+# 
+# #figure A1 to A3: 
+# c <- ggplot(dt_90) +
+#   aes(
+#     x = FractionTraced,
+#     y = Re,
+#     colour = factor(testPeriod),
+#     group = testPeriod,
+#     fill = factor(testPeriod)
+#   ) +
+#   geom_line() + scale_colour_manual(values = colorRampPalette(RColorBrewer::brewer.pal(8, "Set2"))(11), name = "Test Period (Days)") + 
+#   labs(
+#     x = "Proportion of Contacts Traced",
+#     y = "Effective Reproduction Number (Re)",
+#     title = "Re vs Proportion of Contacts Traced"
+#   ) +
+#   theme_minimal() + theme(legend.title=element_text(size=7),legend.key.size = unit(0.4, 'cm'),legend.text = element_text(size=7))+ 
+#   facet_wrap(vars(Disease)) 
+# 
+# #figure B4
+# ggsave("/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_test_period_probTest_90.pdf", c, width = 7, height = 4,device = "pdf")
+# 
+# dt_tst_fraciso <- dt_final[testPeriod == 2 | testPeriod == 8,]
+# dt_tst_fraciso <- dt_tst_fraciso[FractionTraced == 0.10 | FractionTraced ==.50,]
+# 
+# d <- ggplot(data = dt_tst_fraciso)+
+#   geom_line(data = dt_tst_fraciso[FractionTraced == 0.10 & testPeriod == 2, ], aes(y = Re, x = fractionIso, color ="#66C2A5" )) +
+#   geom_line(data = dt_tst_fraciso[FractionTraced == 0.50 & testPeriod == 2 ,], aes(y = Re, x=  fractionIso, color ="#FC8D62"))  +
+#   geom_line(data = dt_tst_fraciso[FractionTraced == 0.10 & testPeriod == 8 ,], aes(y = Re, x = fractionIso, color ="#8DA0CB"))  + 
+#   geom_line(data = dt_tst_fraciso[FractionTraced == 0.50 & testPeriod == 8 ,], aes(y = Re, x=  fractionIso, color ="#E78AC3")) + 
+#   facet_wrap(~Disease)+theme_minimal() + scale_color_identity(name = "Test Period (days) & Proportion of Contacts Traced",
+#                                                               breaks = c("#66C2A5", "#FC8D62", "#8DA0CB", "#E78AC3"),
+#                                                               labels = c("Period: 2, Traced: 0.10", "Period: 2, Traced: 0.50", "Period: 8, Traced: 0.10", "Period: 8, Traced: 0.50"),
+#                                                               guide = "legend") +
+#   labs(title = "Re vs Effectiveness of Isolation/Quarantine", y =("Effective Reproduction Number (Re)"), x = ("Effectiveness of Isolation/Quarantine")) + guides(color=guide_legend(title="Test Period (days) & Proportion of Contacts Traced")) + theme(legend.title=element_text(size=6),legend.key.size = unit(0.4, 'cm'),legend.text = element_text(size=6))
+# 
+# ggsave("/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact_trace_test_prop_contacts_isolated.pdf", d, width = 7, height = 4,device = "pdf")
