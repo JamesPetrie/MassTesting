@@ -3,8 +3,8 @@ require(pracma)
 require(plyr)
 
 #require(pracma)
-
-Rcpp::sourceCpp('/Users/orayasrim/Documents/MassTest/MassTesting/ShinyApp/ViralLoad.cpp')
+folder =  "~/MassTesting/ShinyApp/" # "/Users/orayasrim/Documents/MassTest/MassTesting/ShinyApp/"
+Rcpp::sourceCpp(paste0(folder, "ViralLoad.cpp"))
 # 
 # 
 # 
