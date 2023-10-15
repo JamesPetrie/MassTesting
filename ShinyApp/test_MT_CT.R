@@ -1,6 +1,6 @@
 
 #test file for MT & CT
-folder =  "~/MassTesting/ShinyApp/" # "/Users/orayasrim/Documents/MassTest/MassTesting/ShinyApp/"
+folder =  "/Users/orayasrim/Documents/MassTest/MassTesting/ShinyApp/" #"~/MassTesting/ShinyApp/" # 
 Rcpp::sourceCpp(paste0(folder, "ViralLoad.cpp"))
 source(paste0(folder, "buildFigures.R"))
 library(boot)
