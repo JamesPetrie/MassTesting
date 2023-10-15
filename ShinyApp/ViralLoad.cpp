@@ -20,8 +20,9 @@ using namespace Rcpp;
 
 // computes probability of infection for a typical contact given viral load
 // [[Rcpp::export]]
-inline double probTransmit(double viralLoad, const NumericVector params) {
+inline double probTransmit(double viralLoad,  const NumericVector params) {
   // todo: check equation against paper that proposed it
+
 
   //test
   double midPoint = params["probTransmitMid"];
@@ -34,8 +35,8 @@ inline double probTransmit(double viralLoad, const NumericVector params) {
 // computes probability of a positive PCR result given viral load
 // [[Rcpp::export]]
 inline double probPositive(double viralLoad,const NumericVector params) {
-  double maxSensitivity = 0.995;
-  double slope = 6.0;
+  double maxSensitivity = params["maxSensitivity"];
+  double slope = params["testSlope"];
   double midPoint = params["logLimitOfDetection"];
   
   return((viralLoad > 1) * maxSensitivity / (1+ exp(-slope*(log10(viralLoad) - midPoint))));
@@ -92,6 +93,17 @@ NumericVector fracDiscoveredByHour(const NumericVector params){
   return(fracDiscovered);
 }
 
+// computes multiplier for transmissions depending on symptoms
+// [[Rcpp::export]]
+inline double symptomMult(double time,const NumericVector params){
+  if(time > params["timeToPeak"] + params["timeFromPeakToSymptoms"]){
+    return(params["fracTransmitSymptoms"]);
+  }else{
+    return(1.0);
+  }
+}
+
+
 
 // computes expected transmissions over specified hour range relative to day of infection
 // [[Rcpp::export]]
@@ -100,15 +112,27 @@ double sumTransmissions(double startTime, double endTime,const NumericVector par
   double a = startTime;
   double b = endTime;
   double h = (b - a)/n;
-  double val = h/2.0*(params["contactsPerHour"]*probTransmit(computeViralLoad(a, params), params));
+  double val = h/2.0*(params["contactsPerHour"]* symptomMult(a,params)* probTransmit(computeViralLoad(a, params), params));
   
   for(int i=1;i<n;i++){
-    val += h*(params["contactsPerHour"]*probTransmit(computeViralLoad(a +h*i, params), params));
+    double time = a +h*i;
+    val += h*(params["contactsPerHour"]* symptomMult(time,params)* probTransmit(computeViralLoad(time, params), params));
     
   }
-  val += h/2.0*(params["contactsPerHour"]*probTransmit(computeViralLoad(b, params), params));
+  val += h/2.0*(params["contactsPerHour"]* symptomMult(b,params)* probTransmit(computeViralLoad(b, params), params));
 
   return(val);
+}
+
+// [[Rcpp::export]]
+double sumTransmissionsStable(double startTime, double endTime,const NumericVector params){
+  double symptomTime = params["timeToPeak"] + params["timeFromPeakToSymptoms"];
+  if(symptomTime > startTime && symptomTime < endTime){
+    
+    return(sumTransmissions(startTime, symptomTime, params) + sumTransmissions(symptomTime,  endTime, params) );
+  }else{
+    return(sumTransmissions(startTime, endTime, params));
+  }
 }
 
 // average over test timing offsets
@@ -134,18 +158,56 @@ double fracAfterPositive(const NumericVector params){
     while(testTime <= stopTime ){
       double probPos = probPositive(computeViralLoad(testTime, params), params);
       
-      transmissionsAfter += 1.0/numOffsets*remainingProb*probPos*sumTransmissions(testTime + testDelay, stopTime, params);
+      transmissionsAfter += 1.0/numOffsets*remainingProb*probPos*sumTransmissionsStable(testTime + testDelay, stopTime, params);
       
       remainingProb = remainingProb*(1-probPos);
       
       testTime = testTime + testPeriod;
     }
   }
-  return(transmissionsAfter/sumTransmissions(0, stopTime, params));
+  return(transmissionsAfter/sumTransmissionsStable(0, stopTime, params));
 }
 
-
-
+// compute vector with fraction of cases detected vs time since infection
+// [[Rcpp::export]]
+NumericVector fracDetected(NumericVector times, const NumericVector params){
+  int returnSize = times.length();
+  
+  NumericVector frac(returnSize, 0.0);
+  
+  double testPeriod = params["testPeriod"];
+  double testDelay = params["testDelay"];
+  double stopTime = params["timeToPeak"] + std::min((double)params["timeFromPeakTo0"],(double)params["maxTimeAfterPeak"]) ;
+  
+  
+  if(testPeriod <= 0) return(-1.0);
+  
+  int numOffsets = 6 + 20*params["precision"];
+  
+  for(int i=0;i<numOffsets;i++){
+    double offset = ((double)i)/(numOffsets+1)*params["testPeriod"];
+    double remainingProb = 1.0;
+    double testTime = offset;
+    while(testTime <= stopTime ){
+      double probPos = probPositive(computeViralLoad(testTime, params), params);
+      
+      // increase all points after (testTime + testDelay) by 1.0/numOffsets*remainingProb*probPos
+      double detectTime = testTime + testDelay;
+      
+      double probEvent = 1.0/numOffsets*remainingProb*probPos; 
+      for (int j = 0; j < returnSize; j++ ){
+        if(times[j] >=  detectTime ){
+          frac[j] += probEvent;
+        }
+      }
+      
+      remainingProb = remainingProb*(1-probPos);
+      
+      testTime = testTime + testPeriod;
+    }
+  }
+  return(frac);
+}
 
 
 
