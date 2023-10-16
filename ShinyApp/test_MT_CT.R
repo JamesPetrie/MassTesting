@@ -162,9 +162,6 @@ runAndComputeRe = function(numOutbreaks, endDay, maxSize, diseaseName, R0, timeT
 }
 
 
-#runAndComputeRe(numOutbreaks = 100, endDay = 300, maxSize = 300, diseaseName = "Example", R0 = 3, timeToPeak = 24*5, timeFromPeaktoSymptoms = 0,  probTestSymptoms = 0.5, 
-                testPeriod = 100000*24, tracingDelay = 0, fractionTraced = 0, testDelay = 500, fracIso = 0.9, fracTest = 0)
-
 
 generateDiseaseDt = function(numOutbreaks = 2000, endDay = 120, maxSize = 300, probTestConditionalSymptomsInfluenza, probTestConditionalSymptomsSars,probTestConditionalSymptomsSars2 ){
   test_period_list <- c(1,2,4,8,16)*24
@@ -218,7 +215,7 @@ generateDiseaseDt = function(numOutbreaks = 2000, endDay = 120, maxSize = 300, p
 }
 
 # #figure 2
-disease_dt <- generateDiseaseDt(numOutbreaks = 2000, probTestConditionalSymptomsInfluenza = 0.2, probTestConditionalSymptomsSars = 0.8,probTestConditionalSymptomsSars2 = 0.2)
+disease_dt <- generateDiseaseDt(numOutbreaks = 20, probTestConditionalSymptomsInfluenza = 0.2, probTestConditionalSymptomsSars = 0.8,probTestConditionalSymptomsSars2 = 0.2)
 disease_dt[, testPeriodDays := testPeriod/24]
 
 a <- ggplot(disease_dt) + aes(

@@ -173,7 +173,7 @@ struct Case { // for a case we want to to know when they were infected, earliest
   int hourTraced = INT_MAX; // time they get traced
   int hourLastTested = INT_MIN; // time they were last tested 
   int infectedBy = -1; // index of the person who infected them
-  std::vector<Case*> contacts; // vector of pointers to contact
+  std::vector<int> contacts; // vector of indices of people infected
   std::queue<TestResult> testResults; //queue of test results
  State state = NORMAL; 
   bool adheresToTesting; // see if they have adhered to testing
@@ -193,9 +193,9 @@ struct Case { // for a case we want to to know when they were infected, earliest
     hourLastTested = infectedHour - (int)(testPeriod*runif(1)[0]); //todo: fix test timing offset (problems with changing test period causing distribution to not be uniform)
   } // get when u were last tested 
 
-  void addContact(Case* contact){
-    contacts.push_back(contact);
-  } //people this person infected 
+  void addContact(int contactIndex){
+    contacts.push_back(contactIndex);
+  }//people this person infected 
 
   void getTested(int hour,const NumericVector params){
     if(adheresToTesting == FALSE) return; // people who don't follow testing instructions, return nothing 
@@ -213,13 +213,14 @@ struct Case { // for a case we want to to know when they were infected, earliest
     hourLastTested = hour; // keep track of when u last tested. 
   }
 
+  
   void getTraced(int hour, const NumericVector params ){
     hourTraced = hour + params["ContactTracingDelay"];
   } //time u were contact traced but we need to add a delay because it's not immediate
 
   // todo: create tests queue
   // create state enum
-  int update(int hour, int testPeriod ,const NumericVector params ){
+  int update(int hour, int testPeriod ,  std::vector<Case>& cases, const NumericVector params ){
  
     // processing test and decide what to do with people 
     // if no infection detected yet, check for test results
@@ -234,13 +235,11 @@ struct Case { // for a case we want to to know when they were infected, earliest
           hourInfectionDetected = hour;
           //notify contacts
           //std::cout << contacts.size() << " ";
-          for(auto it = contacts.begin(); it != contacts.end(); ++it){ //for each of these contacts this person infected, we sample if they got traced based on prob they got traced
-            Case* contact = *it;
-            if (params["ProbTracedGivenInfectorDetected"] > runif(1)[0]){ // < params["ProbTracedGivenInfectorDetected"]){
-              contact->getTraced(hour, params);
+          for(int contactIndex : contacts){ 
+            if (params["ProbTracedGivenInfectorDetected"] > runif(1)[0]){ 
+              cases[contactIndex].getTraced(hour, params);
             }
           }
-
         }
       }
 
@@ -342,14 +341,14 @@ Rcpp::DataFrame branchingModel(int endDay, int maxSize, const NumericVector para
     for (size_t i = 0; i < size; ++i){ // go through each cases
       
       //how many that case transmits to at that hour 
-      int numTransmissions = cases[i].update(hour, testPeriod, params); //call update date function to get how many each erson  transmits to and more info
+      int numTransmissions = cases[i].update(hour, testPeriod, cases, params); //call update date function to get how many each erson  transmits to and more info
       
       if(numTransmissions > 0){
         //std::cout << "Case:" << i << ", num transmissions: " << numTransmissions << ", hour = " <<hour;
         for(int j = 0; j < numTransmissions; j++){ // we create new cases and keeps track of who infected, when infected 
           Case newCase = Case(hour, testPeriod, i, params);
           cases.push_back(newCase);// for each transmission, create new case and add to end of vector
-          cases[i].addContact(&cases.back());
+          cases[i].addContact(cases.size()-1);
         }
       }
 
