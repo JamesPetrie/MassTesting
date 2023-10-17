@@ -62,7 +62,7 @@ ui <- fluidPage(useShinyjs(),
                              sliderInput("infectHParam",withMathJax(p('$$h \\text{ (controls width of transition region):}$$')), min = 0,max = 1,value = 0.51),
                              shinyWidgets::sliderTextInput("probTransmitMid",withMathJax(p('$$k_m \\text{ (midpoint of infectiousness):}$$')),
                                                            choices=c("10^3", "10^3.5", "10^4", "10^4.5", "10^5","10^5.5","10^6","10^6.5","10^7","10^7.5","10^8","10^8.5","10^9"),
-                                                           selected= "10^6", grid = TRUE) 
+                                                           selected= "10^7", grid = TRUE) 
                     ),
                     tabPanel("Viral Load",
                              plotOutput("ViralLoad", height="140px"),
