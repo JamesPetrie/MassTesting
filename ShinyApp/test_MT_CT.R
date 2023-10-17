@@ -4,14 +4,15 @@ library(plyr)
 
 Rcpp::sourceCpp("~/MassTesting/ShinyApp/ViralLoad.cpp")
 
-numOutbreaks = 100
-endDay = 300
-maxSize = 1000
+numOutbreaks = 5
+endDay = 150
+maxSize = 500
 
-params = c(ProbTrace = 1,ProbIso = 1, R0 = 2.8, IsoAndTraceSameTime = TRUE)
+params = c(ProbTrace = 0,ProbIso = 0, R0 = 3, MeanDaysToSymptoms = 8,MeanDaysToTransmission = 7,IsoAndTraceSameTime = TRUE)
   
     
 caseData = rbindlist(llply(1:numOutbreaks, function(i){
+  print(i)
   dt = data.table(branchingModel(endDay = endDay, maxSize = maxSize, params)) 
   dt[,RunNumber := i]
   return(dt)
@@ -19,6 +20,11 @@ caseData = rbindlist(llply(1:numOutbreaks, function(i){
  
 caseData = caseData[InfectorId != -1 & (InfectedHour + 5*24*8 < endDay*24)]
 Re <- mean(caseData$NumInfected)
+
+meanfun <- function(data, i){
+  d <- data[i, ]
+  return(mean(d))   
+}
 
 bo <- boot(data.frame(caseData[,NumInfected]), statistic=meanfun, R=1000)
 bootResult <- boot.ci(bo, conf=0.95, type = c("basic"))

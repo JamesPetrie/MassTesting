@@ -6,6 +6,20 @@ using namespace Rcpp;
 #include <memory>
 
 
+#define SIGMA 48
+//#define PI 3.14159265359
+
+double generateRandomSample(double meanVal){
+  //return(rexp(1, 1.0/(meanVal*24))[0]);
+  return(rnorm(1, meanVal, SIGMA)[0]);
+}
+
+double computeDensity(double x, double meanVal){
+  //return(1.0/meanVal*exp(-(x)/meanVal));
+
+  return(1.0/(SIGMA*sqrt(2*PI))*exp(-0.5*pow((x-meanVal)/SIGMA, 2)));
+}
+
 enum State {NORMAL, QUARANTINE, ISOLATION};
 
 // object storing infection timing info for a person. 
@@ -19,19 +33,29 @@ struct Case {
   int totalTransmissions = 0;
   std::vector<int> contacts; // vector of indices of people infected
   State state = NORMAL; 
+  bool canBeTraced = FALSE;
 
   Case(int infectedHour,  int infectorId, const NumericVector params): hourInfected(infectedHour), infectedBy(infectorId){
+    
+    
     if(params["ProbIso"] > runif(1)[0]){
-      hourIso = hourInfected + rexp(1, 1.0/(5.0*24))[0]; // if they do detect symptoms, we record when they started having noticable symptoms
+      hourIso = hourInfected + generateRandomSample(24*params["MeanDaysToSymptoms"]); // if they do detect symptoms, we record when they started having noticable symptoms
     }
     
-    if(params["IsoAndTraceSameTime"]){
+    if(params["IsoAndTraceSameTime"] == 1){
+      //std::cout << "same time";
       hourTraceContacts = hourIso;
+      //hourIso = INT_MAX;
     }else{
       if(params["ProbIso"] > runif(1)[0]){
-        hourTraceContacts = hourInfected + rexp(1, 1.0/(5.0*24))[0]; // if they do detect symptoms, we record when they started having noticable symptoms
+        hourTraceContacts = hourInfected + generateRandomSample(24*params["MeanDaysToSymptoms"]); // if they do detect symptoms, we record when they started having noticable symptoms
       }
     }
+    
+    if (params["ProbTrace"] > runif(1)[0]){ 
+      canBeTraced = TRUE;
+    }
+    
   } 
 
   void recordTransmissions(int numTransmissions){
@@ -53,12 +77,12 @@ struct Case {
     if(hour == hourIso){
       state = ISOLATION; 
     }
-    if(hour == hourTraceContacts){
+    if(hour >= hourTraceContacts){ // todo: put back to ==
       //notify contacts
       for(int contactIndex : contacts){ 
-        if (params["ProbTrace"] > runif(1)[0]){ 
+ 
           cases[contactIndex].getTraced(hour);
-        }
+
       }
     }
     
@@ -66,8 +90,7 @@ struct Case {
     if(state == QUARANTINE || state == ISOLATION){
       return(0);
     }else{ 
-      double lambda = 1/(24*5.0);
-      double transmitRate = params["R0"]*lambda*exp(-lambda*(hour - hourInfected));
+      double transmitRate = params["R0"]*computeDensity(hour - hourInfected, 24*params["MeanDaysToTransmission"]);
 
       int numTransmissions = rpois(1, transmitRate)[0]; // number of transmissions -> pois takes rate give int 
       return(numTransmissions);
