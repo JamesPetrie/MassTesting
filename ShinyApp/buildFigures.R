@@ -11,7 +11,7 @@ require(metR)
 library(Cairo)
 
 
-folder = '/Users/orayasrim/Documents/MassTest/MassTesting/' #"/Users/orayasrim/Documents/MassTest/MassTesting/" # 
+folder = '~/MassTesting/' #"/Users/orayasrim/Documents/MassTest/MassTesting/" # 
 source(paste0(folder, "ShinyApp/ViralLoad.R"))
 #source("~/MassTesting/outbreakBranching.R")
 #Rcpp::sourceCpp("ViralLoad.cpp")
@@ -49,12 +49,12 @@ generateControllabilityFigure = function(testPeriods, inputParams){
     dt[,DaysToPeak := TimeToPeak/24]
     
     pathogenDt = data.table(Pathogen = c("SARS-CoV-2 (Wuhan)", "SARS-CoV-2 (Omicron)", "Influenza (1918)", "SARS-CoV-1", "Measles"),
-                            DaysToPeak = c(8, 5.5, 3.5, 10, 10), R0 = c(2.5, 8, 2.5, 2.5, 15))
+                            DaysToPeak = c(5.0, 5.0, 3.5, 10, 10), R0 = c(2.5, 8, 2.0, 2.5, 15))
     pathogenDt = pathogenDt[, list(DaysToPeak = DaysToPeak + 0.5*c(1,0,-1,0), R0 = R0 + R0*0.2*c(0, 1,0,-1)), by = Pathogen ]
     
     p = ggplot() +
       geom_line(data= dt, aes(x = DaysToPeak, y = MaxR0, colour = PeriodLabel), linewidth = 1.4) + scale_y_log10(breaks = c(1,2,3,4,6,8,10,12,15, 20), limits = c(0.98,20)) + scale_x_continuous(breaks = 0:12) + 
-      guides(colour=guide_legend(title="Test period [Days]")) + xlab("Time to Peak Viral Load [Days]") + ylab("R0")+
+      guides(colour=guide_legend(title="Days between tests")) + xlab("Time to Peak Viral Load [Days]") + ylab("R0")+
       geom_mark_ellipse(data = pathogenDt, aes(x= DaysToPeak, y = R0, group = Pathogen, label = Pathogen), fill = "plum3",size = 0.00 ,label.fontsize = 14, show.legend = F,  lty = "blank")+  theme(legend.position="bottom") +
       labs(title = "Effect of Mass Testing",  subtitle = "Maximum controllable R0 for different testing strategies")
     #geom_ellipse(data = data.table(), aes(x0 = 5, y0 = 3, a = 1, b = 1, angle = 0), fill = "orange", alpha = 0.4)
@@ -299,10 +299,10 @@ plot3Trajectories = function(R0, timeToPeak, params){
   return(list(p1,p2,p3))
 }
 
-plotTrajectories = function(params){
+plotTrajectories = function(params , R0){
   
   dt = data.table(expand.grid(TimeToPeak = 24*c(3,7,10), Time = 24*seq(0,16, length.out = 200))) 
-  dt[, LogPeakLoad := computePeakViralLoad(TimeToPeak, targetR0 = 4.5, params), by = TimeToPeak]
+  dt[, LogPeakLoad := computePeakViralLoad(TimeToPeak, targetR0 = R0, params), by = TimeToPeak]
   dt[ ,ViralLoad := computeViralLoad(Time, replaceParams(params, TimeToPeak, LogPeakLoad)), by = list(Time, TimeToPeak, LogPeakLoad)]
   
   dt[ ,DailyTransmissions :=24*params["contactsPerHour"]*probTransmit(ViralLoad,params), by = list( ViralLoad, TimeToPeak) ]
@@ -335,7 +335,7 @@ plotTrajectories = function(params){
   p2 = ggplot(dt, aes(x = Time/24, y = TestSensitivity)) + facet_wrap( ~   PeakLabel  , nrow = 1) + geom_line(linewidth = 1.4) + 
     theme(axis.text.x=element_blank(),axis.ticks.x=element_blank(), axis.title.x = element_blank()) +# xlab("Day Since Infection" ) +
     scale_x_continuous(breaks = seq(0,16, by = 2))+
-    theme(strip.background = element_blank(), strip.text.x = element_blank())  + ylab("Test\nSensitivity") 
+    theme(strip.background = element_blank(), strip.text.x = element_blank())  + ylab("Test\nSensitivity") + ylim(0,1) 
   
   p3 = ggplot(dt, aes(x = Time/24, y = DailyTransmissions)) + facet_wrap( ~   PeakLabel  , nrow = 1) + geom_line(linewidth = 1.4) + 
     xlab("Day Since Infection" ) +
@@ -763,9 +763,9 @@ plotMultiplePreventedTransmissions = function(params){
 }
 
 # plot fraction transmissions after positive vs test delay for selected testing frequencies for each of the 3 viral load trajectories
-plotFracTransmissionsAfterPositive = function(testPeriods,params){
+plotFracTransmissionsAfterPositive = function(testPeriods,params, R0){
   dt = data.table(expand.grid(TestDelay = seq(0, 72, length.out = 12), TestPeriod  = testPeriods, TimeToPeak = 24*c(3,7,10)))
-  dt[, LogPeakLoad := computePeakViralLoad(TimeToPeak, targetR0 =4.5, params), by = TimeToPeak]
+  dt[, LogPeakLoad := computePeakViralLoad(TimeToPeak, targetR0 =R0, params), by = TimeToPeak]
   
   dt = rbindlist(llply(1:nrow(dt), function(i){
     

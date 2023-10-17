@@ -29,7 +29,7 @@ inline double probTransmit(double viralLoad,  const NumericVector params) {
   double infectHParam = params["infectHParam"];
   //return((viralLoad > 1) * (1 - exp(-params["maxProbTransmitPerExposure"] * pow(viralLoad, 0.51) / (pow(viralLoad, 0.51) + pow(8.9e6, 0.51)))));
   //return((viralLoad > 1) * (1 - exp(-params["maxProbTransmitPerExposure"] * pow(viralLoad, 0.51) / (pow(viralLoad, 0.51) + pow(midPoint, 0.51)))));
-  return((viralLoad > 1) * (1 - exp(-params["maxProbTransmitPerExposure"] * pow(viralLoad,  infectHParam) / (pow(viralLoad,  infectHParam) + pow(midPoint,  infectHParam)))));
+  return((viralLoad > 0.001) * (1 - exp(-params["maxProbTransmitPerExposure"] * pow(viralLoad,  infectHParam) / (pow(viralLoad,  infectHParam) + pow(midPoint,  infectHParam)))));
 }
 
 // computes probability of a positive PCR result given viral load
@@ -39,7 +39,7 @@ inline double probPositive(double viralLoad,const NumericVector params) {
   double slope = params["testSlope"];
   double midPoint = params["logLimitOfDetection"];
   
-  return((viralLoad > 1) * maxSensitivity / (1+ exp(-slope*(log10(viralLoad) - midPoint))));
+  return((viralLoad > 0.001) * maxSensitivity / (1+ exp(-slope*(log10(viralLoad) - midPoint))));
   
   //if (viralLoad > pow(10, params["minLogPCRViralLoad"])) {
   //  return 1;
