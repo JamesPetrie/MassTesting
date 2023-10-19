@@ -215,7 +215,9 @@ struct Case { // for a case we want to to know when they were infected, earliest
 
   
   void getTraced(int hour, const NumericVector params ){
-    hourTraced = hour + params["ContactTracingDelay"];
+    if(hourTraced >  hour + params["ContactTracingDelay"]){
+      hourTraced =  hour + params["ContactTracingDelay"];
+    }
   } //time u were contact traced but we need to add a delay because it's not immediate
 
   // todo: create tests queue
@@ -235,6 +237,11 @@ struct Case { // for a case we want to to know when they were infected, earliest
           hourInfectionDetected = hour;
           //notify contacts
           //std::cout << contacts.size() << " ";
+          if (infectedBy != -1 && params["ProbTracedGivenInfecteeDetected"] > runif(1)[0]){ 
+            cases[infectedBy].getTraced(hour, params);
+            //std::cout << "traced infector";
+          }
+          
           for(int contactIndex : contacts){ 
             if (params["ProbTracedGivenInfectorDetected"] > runif(1)[0]){ 
               cases[contactIndex].getTraced(hour, params);

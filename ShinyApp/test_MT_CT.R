@@ -104,13 +104,14 @@ timepeak_list <- seq(1,12,2)
 prob_test_list <- c(0.10, 0.50, 0.80, 0.90) 
 frac_iso_list <- c(.10,.50,.90) #remove 100% for figure B4
 
-runAndComputeRe = function(numOutbreaks, endDay, maxSize, diseaseName, R0, timeToPeak, timeFromPeaktoSymptoms,  probTestSymptoms, 
+runAndComputeRe = function(numOutbreaks, endDay, maxSize, diseaseName, R0, timeToPeak,timeFromPeakTo0, timeFromPeaktoSymptoms,  probTestSymptoms, 
                            testPeriod, tracingDelay, fractionTraced, testDelay, fracIso, fracTest ){
   params = c(
     normalTestPeriod = testPeriod,
     outbreakTestPeriod = testPeriod ,
     ContactTracingDelay = tracingDelay ,
     ProbTracedGivenInfectorDetected = fractionTraced,
+    ProbTracedGivenInfecteeDetected = fractionTraced, # backward contact tracing
     ProbTestSymptoms = probTestSymptoms,
     timeFromPeakToSymptoms = timeFromPeaktoSymptoms,
     timeToPeak = timeToPeak,
@@ -154,7 +155,7 @@ runAndComputeRe = function(numOutbreaks, endDay, maxSize, diseaseName, R0, timeT
   
   re <- mean(re_filt$NumInfected)
   
-  x = data.table(Re = re, Disease = diseaseName, FractionTraced = fractionTraced, R0 = R0, testPeriod = testPeriod,timePeak = timeToPeak, minBound = lowerBound, maxBound = upperBound,fractionIso = fracIso)
+  x = data.table(Re = re, Disease = diseaseName, FractionTraced = fractionTraced, R0 = R0, testPeriod = testPeriod,timePeak = timeToPeak, minBound = lowerBound, maxBound = upperBound,fractionIso = fracIso, ActualFractionTraced = sum(re_filt[, TracedHour < hourNotInfectious])/nrow(re_filt))
   #x = data.table(Re = re, Disease = disease_name, FractionTraced = fractionTraced, R0 = R0, testPeriod = test_period, probTestPositive = prob_test)
   #x = data.table(Re = re, Disease = disease_name, FractionTraced = fractionTraced, R0 = R0, testPeriod = test_period, fractionIso = frac_iso)
   
@@ -180,7 +181,7 @@ generateDiseaseDt = function(numOutbreaks = 2000, endDay = 120, maxSize = 300, p
           timeFromPeaktoSymptoms = -2*24  #-2*24 #adjust based on disease
           timeToPeak = 4*24 #adjust based on disease
           R0 = 2.0 #adjust based on disease
-          dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak, timeFromPeaktoSymptoms, 
+          dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak,timeToPeak, timeFromPeaktoSymptoms, 
                                probTestSymptoms, testPeriod, tracingDelay,fractionTraced, testDelay, fracIso, fracTest )
           dt[, probTestConditionalSymptoms := probTestConditionalSymptomsInfluenza]
           return(dt)
@@ -192,7 +193,7 @@ generateDiseaseDt = function(numOutbreaks = 2000, endDay = 120, maxSize = 300, p
           timeFromPeaktoSymptoms = -6*24 #adjust based on disease
           timeToPeak = 10.5*24 #adjust based on disease
           R0 = 2.4 #adjust based on disease
-          dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak, timeFromPeaktoSymptoms, 
+          dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak,timeToPeak, timeFromPeaktoSymptoms, 
                                probTestSymptoms, testPeriod, tracingDelay,fractionTraced, testDelay, fracIso, fracTest )
           dt[, probTestConditionalSymptoms := probTestConditionalSymptomsSars]
           return(dt)
@@ -203,7 +204,7 @@ generateDiseaseDt = function(numOutbreaks = 2000, endDay = 120, maxSize = 300, p
           timeFromPeaktoSymptoms = -0*24 #adjust based on disease
           timeToPeak = 5*24 #adjust based on disease
           R0 = 2.5 #adjust based on disease
-          dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak, timeFromPeaktoSymptoms, 
+          dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak,timeToPeak, timeFromPeaktoSymptoms, 
                                probTestSymptoms, testPeriod, tracingDelay,fractionTraced, testDelay, fracIso, fracTest )
           dt[, probTestConditionalSymptoms := probTestConditionalSymptomsSars2]
           return(dt)
@@ -297,24 +298,26 @@ write.csv(disease_dt, "/Users/orayasrim/Documents/MassTest/Figures/re_vs_contact
 
 #figure 3 edited 
 generateTestPeriodDt = function(numOutbreaks = 2000, endDay = 120, maxSize = 300, probTestConditionalSymptoms = 0.80){
-  timepeak_list <- c(2,4,6,8,10,12)*24
-  test_period_list <- floor(24*2^seq(0, 5, length.out = 12))
+  timepeak_list <- c(6)*24
+  test_period_list <- floor(24*2^seq(10, 11, length.out = 2))
   #fractionTraced_list <- seq(0, 0.9, by = 0.1)
-  fractionTraced_list <- c(0, 0.5,0.9)
-  tracingDelay = 24
+  fractionTraced_list <- c(0, 0.5,1)
+  tracingDelay = 2
   testDelay = 10
   fracIso = 0.9
-  fracTest = 0.9
+  fracTest = 1 # 0.9 # todo: fix
   disease_name = "any"
   diseaseDt = rbindlist(llply(fractionTraced_list, function(fractionTraced){
     rbindlist(llply(test_period_list, function(testPeriod){
       rbindlist(llply(timepeak_list, function(time_to_peak){
+        print(time_to_peak)
         probSymptoms = 0.50 #adjust scenario
         probTestSymptoms = probSymptoms*probTestConditionalSymptoms #adjust based on disease
         timeFromPeaktoSymptoms = -1*24 #adjust based on disease
         timeToPeak = time_to_peak #adjust based on disease
         R0 = 2 # adjust based on disease
-        dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak, timeFromPeaktoSymptoms, 
+
+        dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak, 3*timeToPeak,timeFromPeaktoSymptoms, # todo: fix timefrompeakto0
                              probTestSymptoms, testPeriod, tracingDelay,fractionTraced, testDelay, fracIso, fracTest )
         return(dt)
       }))
@@ -324,7 +327,7 @@ generateTestPeriodDt = function(numOutbreaks = 2000, endDay = 120, maxSize = 300
 }
 
 
-testperiod_dt = generateTestPeriodDt(numOutbreaks = 2000, probTestConditionalSymptoms = 0.5)
+testperiod_dt = generateTestPeriodDt(numOutbreaks = 20, probTestConditionalSymptoms = 0.5)
 c <- ggplot(testperiod_dt) +
   aes(
     x = 24/testPeriod,
@@ -446,7 +449,7 @@ generateEffectiveIsoDt = function(numOutbreaks = 1000, endDay = 120, maxSize = 3
           timeFromPeaktoSymptoms = -2*24  #-2*24 #adjust based on disease
           timeToPeak = 4*24 #adjust based on disease
           R0 = 2.0 #adjust based on disease
-          dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak, timeFromPeaktoSymptoms, 
+          dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak, timeToPeak,timeFromPeaktoSymptoms, 
                                probTestSymptoms, testPeriod, tracingDelay,fractionTraced, testDelay, fracIso, fracTest )
           dt[, probTestConditionalSymptoms := probTestConditionalSymptomsInfluenza]
           return(dt)
@@ -469,7 +472,7 @@ generateEffectiveIsoDt = function(numOutbreaks = 1000, endDay = 120, maxSize = 3
           timeFromPeaktoSymptoms = -0*24 #adjust based on disease
           timeToPeak = 5*24 #adjust based on disease
           R0 = 2.5 #adjust based on disease
-          dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak, timeFromPeaktoSymptoms, 
+          dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak,timeToPeak, timeFromPeaktoSymptoms, 
                                probTestSymptoms, testPeriod, tracingDelay,fractionTraced, testDelay, fracIso, fracTest )
           dt[, probTestConditionalSymptoms := probTestConditionalSymptomsSars]
           return(dt)
@@ -526,7 +529,7 @@ generateTestPeriodDt = function(numOutbreaks = 100, endDay = 120, maxSize = 300,
         timeFromPeaktoSymptoms = -1*24 #adjust based on disease
         timeToPeak = time_to_peak #adjust based on disease
         R0 = 2 # adjust based on disease
-        dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak, timeFromPeaktoSymptoms, 
+        dt = runAndComputeRe(numOutbreaks, endDay, maxSize, disease_name, R0, timeToPeak, 2*timeToPeak,timeFromPeaktoSymptoms, 
                              probTestSymptoms, testPeriod, tracingDelay,fractionTraced, testDelay, fracIso, fracTest )
         return(dt)
       }))
