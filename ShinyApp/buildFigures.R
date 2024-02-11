@@ -325,7 +325,7 @@ plotReVsR0AndTime = function(dt){
     #scale_fill_gradient(low = "chartreuse", high = "darkorange")+
     #scale_fill_gradientn(colours = terrain.colors(10)) + 
     #scale_fill_gradientn(colours = terrain.colors(10)) + 
-    xlab("Days to Peak Viral Load") + ylab(expression("R"["0"]))
+    xlab("Days to Peak Viral Load") + ylab(expression("R"["0"]))+  theme(strip.background = element_blank())  + 
     #guides(fill=guide_legend(title="Re"))+
     #theme(legend.position = "bottom")+
     facet_wrap(~Label)

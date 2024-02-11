@@ -50,7 +50,7 @@ ui <- fluidPage(useShinyjs(),
                     tabPanel("Test Sensitivity",
                              plotOutput("TestSensitivity", height="140px"),
                              withMathJax(p('$$S_V(V) =  S_{max} \\frac{1}{1 + e^{-k(\\text{log}_{10}(V)-\\text{log}_{10}(\\text{LOD}_{50}))}}$$')),
-                             sliderInput("logLimitOfDetection",withMathJax(p('$$LOD_{50}  \\text{  (log10 copies / ml):}$$')), min = 0.0,max = 6.0,value = 2.0, step = 0.25), 
+                             sliderInput("logLimitOfDetection",withMathJax(p('$$LOD_{50}  \\text{  (log10 copies / ml):}$$')), min = 0.0,max = 8.0,value = 2.0, step = 0.25), 
                              sliderInput("maxSensitivity",withMathJax(p('$$S_{max}  \\text{ (peak test sensitivity:)}$$')), min = 0.0,max = 1.0,value = 0.995, step = 0.005),
                              sliderInput("testSlope",withMathJax(p('$$k  \\text{ (controls width of intermediate region):}$$')), min = 0.0,max = 10.0,value = 6.0, step = 0.5),
                     ),
@@ -81,9 +81,10 @@ ui <- fluidPage(useShinyjs(),
                               \\text{log}_{10}(V_p) \\cdot (1 - \\frac{t - \\tau_p}{\\tau_r}) + \\text{log}_{10}(V_0) \\cdot \\frac{t - \\tau_p}{\\tau_r}, & \\text{for }  \\tau_p > t > \\tau_p + \\tau_r \\\\
                               -\\infty, & \\text{otherwise }}
                               \\end{cases}}$$')),
-                             sliderInput("relativeDeclineSlope",withMathJax(p('$$\\frac{\\tau_p}{\\tau_r}$$')), min = 0.1,max = 3.0,value = 1.0),
-                             sliderInput("maxDaysAfterPeak",withMathJax(p('$$\\text{maximum days after peak \n viral load infection ends:}$$')), min = 0,max = 20,value = 30),
-                             sliderInput("initialLogLoad",withMathJax(p('$$\\text{log}_{10}(V_0) \\text{ (Initial viral load (log10 copies / ml))}:$$')), min = -4, max = 0,value = -2.5, step = 0.25)
+                         
+                             sliderInput("initialLogLoad",withMathJax(p('$$\\text{log}_{10}(V_0) \\text{ (Initial viral load (log10 copies / ml))}:$$')), min = -4, max = 0,value = -2.5, step = 0.25),
+                             sliderInput("relativeDeclineSlope",withMathJax(p('$$\\frac{\\tau_p}{\\tau_r}$$')), min = 0.05,max = 5.0,value = 1.0),
+                             sliderInput("maxDaysAfterPeak",withMathJax(p('$$\\text{maximum days after peak \n viral load infection ends:}$$')), min = 0,max = 20,value = 20)
                              
                              # todo: computation of expected transmissions after postive test
                              

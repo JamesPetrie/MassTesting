@@ -5,7 +5,7 @@ require(plyr)
 #require(pracma)
 
 #folder = '/Users/orayasrim/Documents/MassTest/MassTesting/' #"/Users/orayasrim/Documents/MassTest/MassTesting/" # 
-Rcpp::sourceCpp(paste0(folder, '/ShinyApp/ViralLoad.cpp'))
+Rcpp::sourceCpp(paste0(folder, 'ViralLoad.cpp'))
 # 
 # 
 # 
@@ -126,7 +126,7 @@ Rcpp::sourceCpp(paste0(folder, '/ShinyApp/ViralLoad.cpp'))
 
 evaluateStrategy = function(params){
   
-  riseTimes = seq(12, 12*24, length.out = 5 + 30*params["precision"])
+  riseTimes = seq(36, 12*24, length.out = 5 + 30*params["precision"])
   dt = rbindlist(llply(riseTimes, function(timeToPeak){
     maxLoad = 16
     
@@ -135,7 +135,14 @@ evaluateStrategy = function(params){
     testParams["timeToPeak"] = timeToPeak
     testParams["timeFromPeakTo0"] = timeToPeak/testParams["relativeDeclineSlope"]
     
-    if(1 > sumTransmissions(0,timeToPeak + testParams["timeFromPeakTo0"], testParams)*
+
+    maxR0 = sumTransmissionsStable(0,testParams["timeToPeak"] + testParams["timeFromPeakTo0"], testParams)
+    if(maxR0 < 1){
+      # disease controllable even without interventions - don't interpret these values
+      return(data.table(MaxR0 = NA, Slope = testParams["logPeakLoad"]/timeToPeak, TimeToPeak = timeToPeak))
+    }
+    
+    if(1 > sumTransmissionsStable(0,timeToPeak + testParams["timeFromPeakTo0"], testParams)*
        ((1-fracAfterPositive(testParams)*params["fracIso"]*params["fracTest"]))*
        (1- testParams["maskEffect"])){
       cutoffLoad = maxLoad
@@ -144,7 +151,7 @@ evaluateStrategy = function(params){
         testParams["logPeakLoad"] = logPeakLoad
   
         
-        R0 = sumTransmissions(0,timeToPeak + testParams["timeFromPeakTo0"], testParams)
+        R0 = sumTransmissionsStable(0,timeToPeak + testParams["timeFromPeakTo0"], testParams)
         if(R0 <= 0) return(1)
         
         fracAfter = fracAfterPositive(testParams)
@@ -156,7 +163,7 @@ evaluateStrategy = function(params){
     
     testParams["logPeakLoad"] = cutoffLoad
     
-    R0 = sumTransmissions(0,testParams["timeToPeak"] + testParams["timeFromPeakTo0"], testParams)
+    R0 = sumTransmissionsStable(0,testParams["timeToPeak"] + testParams["timeFromPeakTo0"], testParams)
     return(data.table(MaxR0 = R0, Slope = testParams["logPeakLoad"]/timeToPeak, TimeToPeak = timeToPeak))
   }))
   dt[ , TestDelay := params["testDelay"]]
