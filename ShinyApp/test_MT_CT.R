@@ -152,7 +152,6 @@ dt_final = rbindlist(llply(test_period_list, function(test_period){
         
         return(dt)
         }))
-      browser()
       re_filt <- caseData[hourNotInfectious<SimulationEndHour]
       re <- mean(re_filt$NumInfected)
       x = data.table(Re = re, Disease = disease_name, FractionTraced = fractionTraced, R0 = R0, testPeriod = test_period)

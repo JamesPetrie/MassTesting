@@ -15,8 +15,8 @@ library(shinycssloaders)
 
 
 
-folder =  '/Users/jpetrie/MassTesting/' #"/Users/orayasrim/Documents/MassTest/MassTesting/" #
-source(paste0(folder, "ShinyApp/buildFigures.R"))
+folder = ""  #'/Users/jpetrie/MassTesting/' #"/Users/orayasrim/Documents/MassTest/MassTesting/" #
+source(paste0(folder, "buildFigures.R"))
 
 
 

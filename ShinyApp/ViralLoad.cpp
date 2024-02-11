@@ -106,8 +106,10 @@ inline double symptomMult(double time,const NumericVector params){
 
 
 // computes expected transmissions over specified hour range relative to day of infection
-// [[Rcpp::export]]
+// for local use only
+
 double sumTransmissions(double startTime, double endTime,const NumericVector params){
+  
   int n =   10 + 90*params["precision"];
   double a = startTime;
   double b = endTime;
