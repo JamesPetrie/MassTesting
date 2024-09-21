@@ -10,9 +10,10 @@ require(tidyr)
 require(metR)
 library(Cairo)
 library(wesanderson)
+library(viridis)
 
 
-folder = '~/MassTesting/ShinyApp/' #"/Users/orayasrim/Documents/MassTest/MassTesting/" # 
+folder = "/Users/orayasrim/Documents/massTesting_update/MassTesting/ShinyApp/"#'~/MassTesting/ShinyApp/'  # 
 source(paste0(folder, "ViralLoad.R"))
 #source("~/MassTesting/outbreakBranching.R")
 #Rcpp::sourceCpp("ViralLoad.cpp")
@@ -124,12 +125,14 @@ generate2TestControllabilityFigure = function(testPeriods, params){
     
     p = ggplot() +
       geom_line(data= dt, aes(x = DaysToPeak, y = MaxR0, colour = TestStrategy, linetype = TestStrategy), linewidth = 1.4) +
-      scale_color_manual(values = c("red", "dodgerblue3", "red", "dodgerblue3")) + 
+      scale_color_manual(values = c("#D95F02", "#1B9E77", "#D95F02", "#1B9E77")) + 
       scale_linetype_manual(values = c(2, 2, 1, 1)) +
       scale_y_log10(breaks = c(1,2,3,4,6,8,10,12,15, 20), limits = c(0.98,20)) + scale_x_continuous(breaks = 0:12) + 
       xlab("Time to Peak Viral Load [Days]") + ylab(expression("R"["0"] )) + guides(linetype=guide_legend(title="Test Strategy"), colour =guide_legend(title="Test Strategy")) + 
       theme(legend.key.width = unit(2,"cm"))+ 
-      geom_mark_ellipse(data = pathogenDt, aes(x= DaysToPeak, y = R0, group = Pathogen, label = Pathogen),fill = "plum3",size = 0.0 ,label.fontsize = 14, show.legend = F, lty = "blank")
+      geom_mark_ellipse(data = pathogenDt, aes(x= DaysToPeak, y = R0, group = Pathogen),fill = "plum3",size = 0.0 ,label.fontsize = 14, show.legend = F, lty = "blank")
+    
+      #geom_mark_ellipse(data = pathogenDt, aes(x= DaysToPeak, y = R0, group = Pathogen, label = Pathogen),fill = "plum3",size = 0.0 ,label.fontsize = 14, show.legend = F, lty = "blank")
     
     #guides(colour=guide_legend(title="Test period [Days]")) + guides(linetype=guide_legend(title="Test Type")) 
     
@@ -183,7 +186,7 @@ generateSymptomsControllabilityFigure = function(testPeriods, symptomTransmissio
     
     p = ggplot() +
       geom_line(data= dt, aes(x = DaysToPeak, y = MaxR0, colour = TestStrategy, linetype = Symptoms), linewidth = 1.4) +
-      scale_color_manual(values = c("red", "dodgerblue3", "red", "dodgerblue3")) + 
+      scale_color_manual(values = c("#D95F02", "#1B9E77", "#D95F02", "#1B9E77")) + 
       scale_y_log10(breaks = c(1,2,3,4,6,8,10,12,15, 20), limits = c(0.98,20)) + scale_x_continuous(breaks = 0:12) + 
       xlab("Time to Peak Viral Load [Days]") +ylab(expression("R"["0"] )) + 
       theme(legend.key.width = unit(2,"cm"))+ 
@@ -251,7 +254,7 @@ plotFracReduction = function(params, R0 = 3, testPeriods = c(24, 72), timesToPea
   # expand.grid
   # compute fraction reduction for each row
   
-  
+ # "#440154FF" "#482576FF" "#414487FF" "#35608DFF" "#2A788EFF" "#21908CFF" "#22A884FF" "#43BF71FF" "#7AD151FF" "#BBDF27FF" "#FDE725FF"
   
   breaks = c(1,  0.99, 0.98, 0.96, 0.92, 0.84, 0.68, 0.36, 0)
   p = ggplot(dt, aes(TestDelay, LOD, z=  FracAfterPositive)) +scale_y_continuous(breaks = 1:6, labels = label_math(expr=10^.x) ) +
@@ -263,7 +266,9 @@ plotFracReduction = function(params, R0 = 3, testPeriods = c(24, 72), timesToPea
     #geom_textcontour(breaks = breaks, straight = T , position = "jitter"  ) + 
     geom_contour(aes(z = FracAfterPositive),  breaks = breaks, colour = "grey15", linetype = "dashed") + 
     geom_text_contour(aes(z = FracAfterPositive),  breaks = breaks,rotate = TRUE, nudge_x = 1.5, nudge_y = 0.1, skip = 0, colour = "black", label.placer = label_placer_fraction(frac = 0.99)) + 
-    scale_fill_manual(values = terrain.colors(11)) + 
+    #scale_fill_manual(values = terrain.colors(11)) + 
+    #scale_fill_manual(values = RColorBrewer::brewer.pal(11,"Paired")) +
+    scale_fill_manual(values = viridis(11)) +
     #theme(legend.position = "none")  +
     guides(fill=guide_legend(title="Fraction Transmissions\nPrevented / Adherence"))+
     theme(legend.position = "bottom")+
@@ -278,15 +283,15 @@ plotFracReduction = function(params, R0 = 3, testPeriods = c(24, 72), timesToPea
   
   
   
-  p = p +   annotate(geom="rect",  xmin = 2, xmax= max(dt$TestDelay), ymin = 1.5, ymax=3.3, fill="blue", alpha=0.2) + 
+  p = p +   annotate(geom="rect",  xmin = 2, xmax= max(dt$TestDelay), ymin = 1.5, ymax=3.3, colour="grey15", alpha=0.0) +  #fill = "blue", alpha = 0.2
     annotate("text", x = max(dt$TestDelay) - 5, y = 3.2, label = "PCR")
   
   if(showPooled){
-    p = p +   annotate(geom="rect",  xmin = 4, xmax= max(dt$TestDelay), ymin = 3.7, ymax=4.3, fill="blue", alpha=0.2) + 
+    p = p +   annotate(geom="rect",  xmin = 4, xmax= max(dt$TestDelay), ymin = 3.7, ymax=4.3, colour="grey15", alpha=0.0) + 
       annotate("text", x = max(dt$TestDelay) - 14, y = 4.2, label = "10x Pooled PCR")
   }
   
-  p = p +   annotate(geom="rect",  xmin = 0, xmax= 2, ymin = 5, ymax=7, fill="blue", alpha=0.2) + 
+  p = p +   annotate(geom="rect",  xmin = 0, xmax= 2, ymin = 5, ymax=7, colour="grey15", alpha=0.0) + 
     annotate("text", x =8, y = 6, label = "Antigen\nLOD50")
  
   
@@ -347,19 +352,19 @@ plot3Trajectories = function(R0, timeToPeak, params){
   
   
   p1 = ggplot(dt, aes(x = Time/24, y = ViralLoad)) + geom_line(linewidth = 1.4)   + xlab("Day Since Infection" ) +
-    scale_x_continuous(breaks = seq(0,16, by = 2))+ theme(text = element_text(size=12), axis.text = element_text(size=12))+
+    scale_x_continuous(breaks = seq(0,16, by = 2))+ theme(text = element_text(size=16), axis.text = element_text(size=18))+
     scale_y_log10(labels = trans_format("log10", math_format(10^.x))) +
     theme(strip.background = element_blank())  + ylab("Viral Load (copies / ml)")+ 
     labs(title="Viral Load Trajectory")
   
   
   p2 = ggplot(dt, aes(x = Time/24, y = TestSensitivity))  + geom_line(linewidth = 1.4) +  xlab("Day Since Infection" ) +
-    scale_x_continuous(breaks = seq(0,16, by = 2))+theme(text = element_text(size=12), axis.text = element_text(size=12))+
+    scale_x_continuous(breaks = seq(0,16, by = 2))+theme(text = element_text(size=16), axis.text = element_text(size=18))+
     theme(strip.background = element_blank())  + ylab("Test Sensitivity")+ 
     labs(title="Test Sensitivity Trajectory")
   
   p3 = ggplot(dt, aes(x = Time/24, y = DailyTransmissions)) + geom_line(linewidth = 1.4) + 
-    xlab("Day Since Infection" ) +theme(text = element_text(size=12), axis.text = element_text(size=12))+
+    xlab("Day Since Infection" ) +theme(text = element_text(size=15), axis.text = element_text(size=18))+
     scale_x_continuous(breaks = seq(0,16, by = 2))+
     theme(strip.background = element_blank(), strip.text.x = element_blank()) + ylab("Expected Daily Transmissions")+
     labs(title="Infectiousness Trajectory")
@@ -563,7 +568,7 @@ plotEffectTestFreq = function(R0, params){
   
   
   p = ggplot(dt,aes(x = 24/TestPeriod, y = FracAfterPositive, colour = as.factor(TimeToPeak/24), linetype = TestType)) + geom_line(size = 0.9) +
-    xlab("Tests Per Day") + ylab("Fraction Transmissions\nPrevented / Adherence") + 
+    xlab("Tests Per Day") + ylab("Fraction Transmissions\nPrevented / Adherence") + scale_colour_manual(values = RColorBrewer::brewer.pal(3, "Dark2")) + 
     guides(colour=guide_legend(title="Days to Peak\nViral Load"), linetype = guide_legend(title = "Test Type")) + 
     scale_x_log10(breaks = c(1/8, 1/4, 0.5, 1,2), labels= c("1/8", "1/4", "1/2", "1", "2")) + theme(text = element_text(size=14), axis.text = element_text(size=14))
   
@@ -614,11 +619,12 @@ plotEffectTestDelay = function(params, R0){
   dt[, TestType := factor(TestType, levels = c("PCR", "Antigen"))]
   
   p = ggplot(dt, aes(x = TestDelay, y = FracAfterPositive, colour =  as.factor(TimeToPeak/24), linetype = TestType)) + geom_line(size = 0.9)+ 
-    guides(colour=guide_legend(title="Days to Peak\nViral Load"), linetype=guide_legend(title="Test Type\n(Daily Testing)")) + ylab("Fraction Transmissions\nPrevented / Adherence") +
+    guides(colour=guide_legend(title="Days to Peak\nViral Load"), linetype=guide_legend(title="Test Type\n(Daily Testing)"))  + ylab("Fraction Transmissions\nPrevented / Adherence") + scale_colour_manual(values = RColorBrewer::brewer.pal(3, "Dark2"))+ #scale_colour_manual(values = viridis(3)) +
     xlab("Test Delay (hours)") + theme(text = element_text(size=14), axis.text = element_text(size=14))
   
   return(p)
 }
+
 
 # todo: change to daily cost per person (in dollars)
 # p = plotPrevalenceCost(c(1,3,7), c(variableTestCost = 2, isolationCost = 5000, fixedAnnualizedDailyTestCost = 1))
@@ -854,11 +860,11 @@ plotMultiplePreventedTransmissions = function(params){
   newParams = copy(params)
   newParams["testDelay"] = 24
   newParams["testPeriod"] = 24*4
-  p1 = plotPreventedTransmissions(newParams) + theme(text = element_text(size=14)) #+ ggtitle("Test Every 2 Days with 24 Hour Delay") 
+  p1 = plotPreventedTransmissions(newParams) + theme(text = element_text(size=20),axis.text = element_text(size=18)) #+ ggtitle("Test Every 2 Days with 24 Hour Delay") 
   
   newParams["testDelay"] = 12
   newParams["testPeriod"] = 24*2
-  p2 = plotPreventedTransmissions(newParams)  + theme(text = element_text(size=14)) # + ggtitle("Test Every Day with 8 Hour Delay")
+  p2 = plotPreventedTransmissions(newParams)  + theme(text = element_text(size=20),axis.text = element_text(size=18)) # + ggtitle("Test Every Day with 8 Hour Delay")
   
   p = plot_grid(p1, p2, nrow= 1, labels = c("F", "G"))
   
@@ -891,7 +897,7 @@ plotFracTransmissionsAfterPositive = function(testPeriods,params, R0){
   p = ggplot(dt, aes(x = TestDelay, y = FracAfterPositive, colour =  as.factor(TestPeriod/24))) + geom_line(linewidth = 1.4)  + 
     scale_y_continuous(expand = c(0, 0), limits = c(0,1.01)) + guides(colour=guide_legend(title="Test Period [Days]")) +
     xlab("Test Delay [Hours]") + ylab("Fraction Transmissions \n After Positive Test")+ 
-    theme(legend.position = c(0.7, 0.2)) + theme(text = element_text(size=16)) + facet_wrap(~PeakLabel, nrow = 1)+
+    theme(legend.position = c(0.7, 0.2)) + theme(text = element_text(size=25)) + facet_wrap(~PeakLabel, nrow = 1)+
     theme(strip.background = element_blank())+  theme(legend.position="bottom") 
   return(p)
 }
@@ -918,11 +924,10 @@ plotPreventedTransmissions = function(params){
   
   dt[, Day:= Time/24]
   
-  
   p =  ggplot(dt) + #geom_ribbon(aes(x = Time , ymin = RemainingTransmissions, ymax = HourlyTransmissions), fill = "grey", alpha = 0.6) + 
     geom_line(aes(x = Day , y = DailyTransmissions ),  linetype = "solid", colour = "black", linewidth = 1) +
-    geom_ribbon(fill = "orange" , colour = "orange", alpha = 0.6 ,aes(x = Day ,ymin = 0,  ymax =  NonAdhereTransmissions)) + 
-    geom_ribbon(fill = "purple" , colour = "purple", alpha = 0.6, aes(x = Day , ymin =  NonAdhereTransmissions, ymax = RemainingTransmissions)) + 
+    geom_ribbon(fill = "#FDE725FF" , colour = "#FDE725FF", alpha = 0.6 ,aes(x = Day ,ymin = 0,  ymax =  NonAdhereTransmissions)) + 
+    geom_ribbon(fill = "#440154FF" , colour = "#440154FF", alpha = 0.6, aes(x = Day , ymin =  NonAdhereTransmissions, ymax = RemainingTransmissions)) + 
     xlab("Days Since Infection") + ylab("Expected Transmissions per Day") + geom_line(aes(x= Day, y= 1-(FracDiscovered)*params["fracTest"]), linetype= "dashed")
   
   return(p)
@@ -1029,12 +1034,18 @@ generateCovidFracPrevented = function(params){
 
   dt[, IsoEffect := factor(IsoEffect, levels = c(0.95, 0.5))]
   # todo? make x axis fraction testing, linetype isolation effectiveness
-  p1 = ggplot(dt,aes(x = FracTest, y = FracPrevented, colour = TestType)) +  geom_line(aes(linetype = IsoEffect))+
+  # p1 = ggplot(dt,aes(x = FracTest, y = FracPrevented, colour = TestType)) +  geom_line(aes(linetype = IsoEffect))+
+  #   xlab("Fraction Tested") + ylab("Fraction Transmissions Prevented") + theme( legend.position = c(0.1, 0.75)) +
+  #   ylim(0,1) + #scale_y_continuous(breaks = seq(0,1, by = 0.2), labels = paste0(signif(100*seq(0,1, by = 0.2), 1), "%")) + 
+  #   guides(colour=guide_legend(title="Test Type\n(With Daily Testing)"), linetype = guide_legend(title = "Isolation\nEffectiveness")) +
+  #   theme(legend.title=element_text(size=14),legend.text=element_text(size=14)) 
+  
+  p1 = ggplot(dt,aes(x = FracTest, y = FracPrevented, colour = TestType)) +  geom_line(aes(linetype = IsoEffect), size = 1.5)+
     xlab("Fraction Tested") + ylab("Fraction Transmissions Prevented") + theme( legend.position = c(0.1, 0.75)) +
     ylim(0,1) + #scale_y_continuous(breaks = seq(0,1, by = 0.2), labels = paste0(signif(100*seq(0,1, by = 0.2), 1), "%")) + 
-    guides(colour=guide_legend(title="Test Type\n(With Daily Testing)"), linetype = guide_legend(title = "Isolation\nEffectiveness")) +
-    theme(legend.title=element_text(size=14),legend.text=element_text(size=14)) 
-  
+    guides(color=guide_legend(title=expression(paste("Test Type\n(With Daily Testing)")) ), linetype = guide_legend(title = expression(paste("Isolation\nEffectiveness (",beta,")")))) +
+    theme(legend.title=element_text(size=14),legend.text=element_text(size=14), legend.margin = unit(25, "pt"), legend.key.size = unit(5, "pt") )  + scale_fill_viridis()
+
   
   
   covidParams["logLimitOfDetection"] = typicalPcrLogLod
@@ -1061,20 +1072,26 @@ generateCovidFracPrevented = function(params){
   
   dt[, IsoEffect := factor(IsoEffect, levels = c(0.95, 0.5))]
   
-  p2 = ggplot(dt,aes(x = 24/TestPeriod, y = FracPrevented, colour = as.factor(FracTest) )) + geom_line(aes(linetype = IsoEffect))+
+  # p2 = ggplot(dt,aes(x = 24/TestPeriod, y = FracPrevented, colour = as.factor(FracTest) )) + geom_line(aes(linetype = IsoEffect))+
+  #   xlab("Tests Per Day") + ylab("Fraction Transmissions Prevented") + ylim(0,1)+
+  #   guides(colour=guide_legend(title="Fraction Tested \n(With Fast PCR)", reverse = TRUE),  linetype = guide_legend(title = "Isolation\nEffectiveness")) + 
+  #   scale_x_log10(breaks = c(1/32, 1/16, 1/8, 1/4, 0.5, 1,2), labels= c("1/32", "1/16","1/8", "1/4", "1/2", "1", "2")) + 
+  #   theme(legend.position = c(0.1, 0.75),  legend.title=element_text(size=14),legend.text=element_text(size=14)) 
+  
+  p2 = ggplot(dt,aes(x = 24/TestPeriod, y = FracPrevented, colour = as.factor(FracTest) )) + geom_line(aes(linetype = IsoEffect), size = 1.5)+
     xlab("Tests Per Day") + ylab("Fraction Transmissions Prevented") + ylim(0,1)+
-    guides(colour=guide_legend(title="Fraction Tested \n(With Fast PCR)", reverse = TRUE),  linetype = guide_legend(title = "Isolation\nEffectiveness")) + 
+    guides(colour=guide_legend(title=expression(paste("Fraction Tested \n(With Fast PCR) (",gamma,")")), reverse = TRUE),  linetype = guide_legend(title = expression(paste("Isolation\nEffectiveness (",beta,")")))) + 
     scale_x_log10(breaks = c(1/32, 1/16, 1/8, 1/4, 0.5, 1,2), labels= c("1/32", "1/16","1/8", "1/4", "1/2", "1", "2")) + 
-    theme(legend.position = c(0.1, 0.75),  legend.title=element_text(size=14),legend.text=element_text(size=14)) 
+    theme(legend.position = c(0.1, 0.75),  legend.title=element_text(size=14),legend.text=element_text(size=14),legend.margin = unit(25, "pt"),legend.key.size = unit(5, "pt")) 
 
   
   interventions = data.table(Intervention = c("Only schools and\nuniversities closed",  "Most nonessential\nbusinesses closed"), Effect = c(0.379,  0.266))
   
   
-  p1 = p1 + geom_hline(data = interventions, aes(yintercept = Effect), linetype = "dashed", colour = "black") + geom_text(data = interventions, aes(x = 0,y = Effect,label = Intervention),  colour = "black", vjust = 0.5, hjust = 0, size = 3.5 )
+  p1 = p1 + geom_hline(data = interventions, aes(yintercept = Effect), linetype = "dashed", colour = "black") + geom_text(data = interventions, aes(x = 0,y = Effect,label = Intervention),  colour = "black", vjust = 0.5, hjust = 0, size = 4.5 ) #size = 3.5
   
   
-  p2 = p2 + geom_hline(data = interventions, aes(yintercept = Effect), linetype = "dashed", colour = "black") + geom_text(data = interventions, aes(x = 1/32,y = Effect,label = Intervention),  colour = "black", vjust = 0.5, hjust = 0, size = 3.5 )
+  p2 = p2 + geom_hline(data = interventions, aes(yintercept = Effect), linetype = "dashed", colour = "black") + geom_text(data = interventions, aes(x = 1/32,y = Effect,label = Intervention),  colour = "black", vjust = 0.5, hjust = 0, size = 4.5 )
   
   
   my_colors <- RColorBrewer::brewer.pal(6, "Dark2")
@@ -1090,7 +1107,7 @@ generateControllabilityScenarios = function(testPeriods, params){
   p2 =  generate2TestControllabilityFigure(testPeriods, combineParams(params , c(  fracIso = 0.8, fracTest = 0.7)))
   
   
-  p = plot_grid(p1+ theme(legend.position = "None") ,p2+ theme(legend.position = "None"), labels = c("A (90% Adherence)", "B (56% Adherence)"))
+  p = plot_grid(p1+ theme(legend.position = "None") ,p2+ theme(legend.position = "None"), labels = c("A (90% Adherence)", "B (56% Adherence)"), label_size = 30)
   grobs <- ggplotGrob(p1+guides(color = guide_legend(nrow = 2, title = "Test Strategy"), linetype = guide_legend(nrow = 2, title = "Test Strategy") ) +
                         theme(legend.direction = "horizontal",
                               legend.justification = "left",
