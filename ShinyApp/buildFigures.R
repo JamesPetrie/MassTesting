@@ -311,6 +311,7 @@ generateReVsR0AndTime = function(params, lod = typicalPcrLogLod, testDelay = 8, 
   return(dt)
 }
 
+
 plotReVsR0AndTime = function(dt){
   
   
@@ -326,7 +327,8 @@ plotReVsR0AndTime = function(dt){
     geom_contour(aes(z = Re),  breaks = breaks, colour = "grey15", linetype = "dashed") + 
     #geom_text_contour(aes(z = FracAfterPositive),  breaks = breaks,  colour = "black")+ #, label.placer = label_placer_fraction(frac = 0.95)) + 
     #scale_fill_manual(values = terrain.colors(length(breaks), rev = TRUE)) +  
-    scale_fill_gradient2(low = "green",high = "red" , mid = "yellow", midpoint = 1, name = expression("R"["e"]))+
+    #scale_fill_gradient2(low = "green",high = "red" , mid = "yellow", midpoint = 1, name = expression("R"["e"]))+
+    scale_fill_gradient2(low = "#FDE725FF",high = "#440154FF" , mid = "#21908CFF", midpoint = 1, name = expression("R"["e"]))+
     #scale_fill_gradient(low = "chartreuse", high = "darkorange")+
     #scale_fill_gradientn(colours = terrain.colors(10)) + 
     #scale_fill_gradientn(colours = terrain.colors(10)) + 
@@ -1041,10 +1043,10 @@ generateCovidFracPrevented = function(params){
   #   theme(legend.title=element_text(size=14),legend.text=element_text(size=14)) 
   
   p1 = ggplot(dt,aes(x = FracTest, y = FracPrevented, colour = TestType)) +  geom_line(aes(linetype = IsoEffect), size = 1.5)+
-    xlab("Fraction Tested") + ylab("Fraction Transmissions Prevented") + theme( legend.position = c(0.1, 0.75)) +
+    xlab("Fraction Tested") + ylab("Fraction Transmissions Prevented") + theme( legend.position = c(0.1, 0.70)) +
     ylim(0,1) + #scale_y_continuous(breaks = seq(0,1, by = 0.2), labels = paste0(signif(100*seq(0,1, by = 0.2), 1), "%")) + 
     guides(color=guide_legend(title=expression(paste("Test Type\n(With Daily Testing)")) ), linetype = guide_legend(title = expression(paste("Isolation\nEffectiveness (",beta,")")))) +
-    theme(legend.title=element_text(size=14),legend.text=element_text(size=14), legend.margin = unit(25, "pt"), legend.key.size = unit(5, "pt") )  + scale_fill_viridis()
+    theme(legend.title=element_text(size=14),legend.text=element_text(size=14), legend.margin = unit(25, "pt"), legend.key.size = unit(20, "pt") )  + scale_fill_viridis()
 
   
   
@@ -1082,16 +1084,16 @@ generateCovidFracPrevented = function(params){
     xlab("Tests Per Day") + ylab("Fraction Transmissions Prevented") + ylim(0,1)+
     guides(colour=guide_legend(title=expression(paste("Fraction Tested \n(With Fast PCR) (",gamma,")")), reverse = TRUE),  linetype = guide_legend(title = expression(paste("Isolation\nEffectiveness (",beta,")")))) + 
     scale_x_log10(breaks = c(1/32, 1/16, 1/8, 1/4, 0.5, 1,2), labels= c("1/32", "1/16","1/8", "1/4", "1/2", "1", "2")) + 
-    theme(legend.position = c(0.1, 0.75),  legend.title=element_text(size=14),legend.text=element_text(size=14),legend.margin = unit(25, "pt"),legend.key.size = unit(5, "pt")) 
+    theme(legend.position = c(0.1, 0.70),  legend.title=element_text(size=14),legend.text=element_text(size=14),legend.margin = unit(25, "pt"),legend.key.size = unit(20, "pt")) 
 
   
   interventions = data.table(Intervention = c("Only schools and\nuniversities closed",  "Most nonessential\nbusinesses closed"), Effect = c(0.379,  0.266))
   
   
-  p1 = p1 + geom_hline(data = interventions, aes(yintercept = Effect), linetype = "dashed", colour = "black") + geom_text(data = interventions, aes(x = 0,y = Effect,label = Intervention),  colour = "black", vjust = 0.5, hjust = 0, size = 4.5 ) #size = 3.5
+  p1 = p1 + geom_hline(data = interventions, aes(yintercept =Effect), linetype = 3, colour = "black", size = 1) + geom_text(data = interventions, aes(x = 0,y = Effect,label = Intervention),  colour = "black", vjust = 0.5, hjust = 0, size = 4.5 ) #size = 3.5
   
   
-  p2 = p2 + geom_hline(data = interventions, aes(yintercept = Effect), linetype = "dashed", colour = "black") + geom_text(data = interventions, aes(x = 1/32,y = Effect,label = Intervention),  colour = "black", vjust = 0.5, hjust = 0, size = 4.5 )
+  p2 = p2 + geom_hline(data = interventions, aes(yintercept = Effect), linetype = 3, colour = "black", size = 1) + geom_text(data = interventions, aes(x = 1/32,y = Effect,label = Intervention),  colour = "black", vjust = 0.5, hjust = 0, size = 4.5 )
   
   
   my_colors <- RColorBrewer::brewer.pal(6, "Dark2")
@@ -1111,7 +1113,8 @@ generateControllabilityScenarios = function(testPeriods, params){
   grobs <- ggplotGrob(p1+guides(color = guide_legend(nrow = 2, title = "Test Strategy"), linetype = guide_legend(nrow = 2, title = "Test Strategy") ) +
                         theme(legend.direction = "horizontal",
                               legend.justification = "left",
-                              legend.box.just = "bottom") )$grobs
+                              legend.box.just = "bottom",
+                              plot.title.position = "plot") )$grobs
   legend <- grobs[[which(sapply(grobs, function(x) x$name) == "guide-box")]] 
   p = plot_grid( legend, p , nrow = 2, rel_heights = c(0.12, 1))
   return(p)
